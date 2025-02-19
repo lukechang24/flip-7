@@ -10,11 +10,8 @@ export default function Game() {
     }
     useEffect(() => {
         shuffle()
-        deck.forEach(card => {
-            console.log(JSON.stringify(card))
-        })
     }, [])
-    return(
+    return (
         "hi"
     )
 }

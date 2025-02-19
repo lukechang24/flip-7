@@ -1,22 +1,24 @@
 'use client'
 import { useEffect } from "react"
-// import { auth } from "./firebase"
-
+import { withFirebase } from "../Firebase"
 import Game from "./Game"
 
-export default function Home() {
-//   useEffect(() => {
-//     auth.onAuthStateChanged((user) => {
-//         if (user) {
-//             console.log(user)
-//         } else {
-//             console.log("no user")
-//         }
-//     })
-// }, [])
+const Home = ({ firebase }) => {
+  //   useEffect(() => {
+  //     auth.onAuthStateChanged((user) => {
+  //         if (user) {
+  //             console.log(user)
+  //         } else {
+  //             console.log("no user")
+  //         }
+  //     })
+  // }, [])
+  { console.log(firebase) }
   return (
     <div>
       <Game />
     </div>
   );
 }
+
+export default withFirebase(Home)
