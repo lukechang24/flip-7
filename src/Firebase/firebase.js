@@ -1,6 +1,5 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import 'firebase/compat/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import firebaseConfig from "./firebaseConfig"
 // TODO: Add SDKs for Firebase products that you want to use
@@ -19,26 +18,21 @@ class Firebase {
   constructor() {
     this.db = db;
   }
-  createRoom = async (id, data) => {
-    const roomRef = doc(this.db, "rooms", id); // Reference to the document
-    await setDoc(roomRef, data); // Set data in Firestore
-    return roomRef;
-  };
 
   findRoom = async (id) => {
-    const roomRef = doc(this.db, "rooms", id);
+    const roomRef = doc(this.db, "game", id);
     const roomSnap = await getDoc(roomRef);
 
     return roomSnap.exists() ? roomSnap.data() : null;
   };
 
   updateRoom = async (id, newData) => {
-    const roomRef = doc(this.db, "rooms", id);
+    const roomRef = doc(this.db, "game", id);
     await updateDoc(roomRef, newData);
   };
 
   listenToRoom = (id, callback) => {
-    const roomRef = doc(this.db, "rooms", id);
+    const roomRef = doc(this.db, "game", id);
     return onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) {
         callback(snapshot.data()); // Call function with new data

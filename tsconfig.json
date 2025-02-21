@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/Firebase/firebase.js", "src/app/layout.tsx", "src/app/page.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/Firebase/firebase.js", "src/app/layout.jsx", "src/app/page.jsx", "src/Firebase/context.jsx", "src/app/deck.js", "src/app/auth.js", "src/app/Game/style.js", "src/app/Game/index.jsx", "src/Firebase/firebaseConfig.js"],
   "exclude": ["node_modules"]
 }
