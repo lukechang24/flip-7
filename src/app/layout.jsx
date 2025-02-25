@@ -1,4 +1,5 @@
 'use client'
+import './global.css'
 import Firebase, { FirebaseContext } from '../Firebase';
 
 export default function RootLayout({

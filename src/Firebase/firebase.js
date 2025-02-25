@@ -22,7 +22,6 @@ class Firebase {
   findRoom = async (id) => {
     const roomRef = doc(this.db, "game", id);
     const roomSnap = await getDoc(roomRef);
-
     return roomSnap.exists() ? roomSnap.data() : null;
   };
 

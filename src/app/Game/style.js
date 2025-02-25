@@ -15,21 +15,47 @@ S.Container1 = styled.div`
 `
 
 S.PlayerContainer = styled.div`
-  position: absolute;
-    top: ${props => props.position === "bottom1" || props.position === "bottom2" ? "calc(750px - 250px)" : props.position === "top1" || props.position === "top2" ? 0 : props.position === "left1" || props.position === "left2" || props.position === "right1" || props.position === "right2" ? "calc(calc((750px - 250px)/2))" : 0};
-    left: ${props => props.position === "bottom" || props.position === "top" ? "calc((750px - 250px)/2)" : props.position === "left" ? 0 : props.position === "right" ? "calc(750px - 250px)" : 0};
-    width: 250px;
-    height: 250px;
+    position: absolute;
+    top: ${props =>
+    props.position === "top-left" || props.position === "top-right" ? "0" :
+    props.position === "bottom-left" || props.position === "bottom-right" ? "calc(100vh - var(--box-height))" :
+    props.position === "left-center" || props.position === "right-center" ? "calc((100vh - var(--box-height)) / 2)" :
+    "0"};
+    left: ${props =>
+    props.position === "top-left" || props.position === "bottom-left" ? "calc(25vw)" :
+    props.position === "top-right" || props.position === "bottom-right" ? "calc(100vw - 25vw - var(--box-width))" :
+    props.position === "left-center" ? "0" :
+    props.position === "right-center" ? "calc(100vw - var(--box-width))" :
+    "0"};
+    width: var(--box-width);
+    height: var(--box-height);
     display: flex;
     flex-direction: ${props => props.position === "bottom" ? "column-reverse" : "column"};
     justify-content: center;
     align-items: center;
-    background-color: lightblue;
+    background-color: ${props => props.grayout ? "gray" : "lightblue"};
     border: 5px solid white;
     &.highlight {
         border: 5px solid greenyellow;
     }
 `
 
+S.Name = styled.h3`
+			position: absolute;
+			bottom: 0;
+`
+
+S.HandContainer = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+`
+
+S.Points = styled.p`
+
+`
+
+S.TotalPoints = styled.p`
+
+`
 
 export default S
