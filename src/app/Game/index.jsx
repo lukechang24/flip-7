@@ -13,18 +13,27 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
     let updatedWhoseTurn = ""
     for (let i = 0; i < players.length; i++) {
       if (id === players[i].id) {
-        const updatedHand = [...players[i].hand]
+				const player = updatedPlayers[i]
+        const updatedHand = [...player.hand]
         let drawnCard = updatedDeck.pop()
         updatedHand.push(drawnCard)
-        updatedPlayers[i].hand = updatedHand
+        player.hand = updatedHand
 				
-        calculatePoints(updatedPlayers)
-				
-        if (!drawnCard.effect && checkIfBust(players[i].hand, drawnCard)) {
-					updatedPlayers[i].isBust = true
-          updatedPlayers[i].points = 0
+        if (!drawnCard.effect && checkIfBust(player.hand, drawnCard)) {
+					player.status = "busted"
+          player.points = 0
+
         }
-				checkIfWin(updatedPlayers[i])
+
+				calculatePoints(updatedPlayers)
+
+				const isWinner = checkIfWin(player)
+				if (isWinner) {
+					await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd" })
+					return
+
+				}
+
 				updatedWhoseTurn = updatedPlayers[wrapIndex(i + 1, updatedPlayers)] ? updatedPlayers[wrapIndex(i + 1, updatedPlayers)].id : ""
       }
     }
@@ -37,18 +46,28 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
     let updatedWhoseTurn = ""
 
 		const i = 2
-		const updatedHand = [...players[i].hand]
+		const player = updatedPlayers[i]
+		const updatedHand = [...player.hand]
 		let drawnCard = updatedDeck.pop()
 		updatedHand.push(drawnCard)
-		updatedPlayers[i].hand = updatedHand
+		player.hand = updatedHand
 		
-		calculatePoints(updatedPlayers)
-		
-		if (!drawnCard.effect && checkIfBust(players[i].hand, drawnCard)) {
-			updatedPlayers[i].isBust = true
-			updatedPlayers[i].points = 0
+		if (!drawnCard.effect && checkIfBust(player.hand, drawnCard)) {
+			player.status = "busted"
+			player.points = 0
+
 		}
-		checkIfWin(updatedPlayers[i])
+
+		calculatePoints(updatedPlayers)
+
+		const isWinner = checkIfWin(player)
+		if (isWinner) {
+			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd" })
+			// MAKE IT SO IT ISNT THE WINNERS TURN AGAIN WHEN NEXTROUND IS HIT
+			return
+
+		}
+
 		updatedWhoseTurn = updatedPlayers[wrapIndex(i + 1, updatedPlayers)] ? updatedPlayers[wrapIndex(i + 1, updatedPlayers)].id : ""
 
     await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, whoseTurn: updatedWhoseTurn })
@@ -56,10 +75,11 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
 
   const calculatePoints = (arr) => {
     arr.forEach((player, i) => {
+			if (player.status === "busted") return
       let points = 0
       let isDouble = false
       player.hand.forEach(card => {
-        if (card.value) {
+        if (card.value || card.value === 0) {
           points += card.value
         } else if (card.effect.includes("plus")) {
           points += extractNumber(card.effect)
@@ -75,16 +95,19 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
 
 	}
 
-	const checkIfWin = async (player) => {
-		const totalNum = 0
+	const checkIfWin = (player) => {
+		let totalNum = 0
 		player.hand.forEach(card => {
 			if (card.value) {
 				totalNum++
 			}
 		})
 		if (totalNum === 7) {
-			await updateRoom("room", { phase: "intersession" })
+			player.points += 15
+			return true
+			// playing, flip7, roundEnd
 		}
+		return false
 	}
 
   const checkIfBust = (hand, card) => {
@@ -97,8 +120,18 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
     return false
   }
 
-  const startNextRound = () => {
-
+  const startNextRound = async () => {
+		const updatedPlayers = [...players]
+		let discardedCards = []
+		for (let i = 0; i < updatedPlayers.length; i++) {
+			const player = updatedPlayers[i]
+			discardedCards = [...discardedCards, ...player.hand]
+			player.totalPoints += player.points
+			player.points = 0
+			player.hand = []
+			player.status = "active"
+		}
+		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", isAllBust: false, round: round + 1,  })
   }
   
   const rotateIds = (id, arr) => {
@@ -119,15 +152,15 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
     }
     console.log("running this")
     let newIndex = ((index % arr.length) + arr.length) % arr.length
-    if (arr[newIndex].isBust) {
+    if (arr[newIndex].status === "busted") {
       return wrapIndex(index + 1, arr, counter + 1)
     }
     return newIndex
   }
 
   const findPlayerById = (playerList, playerId) => {
-    if (!playerList || playerList.length === 0 || !playerId) return null;
-    return playerList.find(player => player.id === playerId);
+    if (!playerList || playerList.length === 0 || !playerId) return null
+    return playerList.find(player => player.id === playerId)
   }
 
   const extractNumber = (str) => {
@@ -137,9 +170,13 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
 
   useEffect(() => {
     const checkIfAllBust = async () => {
-      if (players.every(player => player.isBust) && players.length !== 0) {
-        console.log("diong this")
-        await updateRoom("room", { whoseTurn: "" })
+      if (players.every(player => player.status === "busted") && players.length !== 0) {
+				const currIndex = players.find((player, i) => {
+					return player.id === playerId ? i : null
+				})
+        let updatedWhoseTurn = players[wrapIndex(currIndex + 1, players)] ? players[wrapIndex(currIndex + 1, players)].id : ""
+
+        await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
         return true
       }
       return false
@@ -152,10 +189,11 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
       return <S.Card>{hand.value ? hand.value : hand.effect}</S.Card>
     })
     return (
-      <S.PlayerContainer className={player.id === whoseTurn ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } grayout={player.isBust}>
+      <S.PlayerContainer className={player.id === whoseTurn && phase === "playing" ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } grayout={player.status === "busted"}>
         <S.HandContainer>{handList}</S.HandContainer>
         <S.Points>{player.points}</S.Points>
         <S.Name>{player.name}</S.Name>
+				<S.TotalPoints>{player.totalPoints}</S.TotalPoints>
       </S.PlayerContainer>
     )
   }) : null
@@ -166,10 +204,10 @@ const Game = ({ gameState, id, checkIfExists, firebase }) => {
       :
 
       <S.Container1>
-        <button onClick={draw} disabled={id !== whoseTurn || findPlayerById(players, id).isBust}>draw</button>
-        <button onClick={drawMock}>drawMock</button>
+        <button onClick={draw} disabled={id !== whoseTurn || findPlayerById(players, id).status === "busted" || phase ==="roundEnd"}>draw</button>
+        <button onClick={drawMock} disabled={phase ==="roundEnd"}>drawMock</button>
         {playerList}
-        <button onClick={startNextRound} disabled={!isAllBust || !round}>next round</button>
+        <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
       </S.Container1>
   )
 }

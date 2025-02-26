@@ -2,3 +2,8 @@
     --box-width: 250px;
     --box-height: 250px;
   }
+
+* {
+	margin: 0;
+	padding: 0;
+}

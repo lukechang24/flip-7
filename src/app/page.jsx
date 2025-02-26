@@ -48,7 +48,7 @@ const Home = ({ firebase }) => {
 			hand: [],
 			points: 0,
 			totalPoints: 0,
-			isBust: false,
+			status: "active",
 			isSelecting: false,
 		};
 
@@ -77,7 +77,7 @@ const Home = ({ firebase }) => {
 				hand: [],
 				points: 0,
 				totalPoints: 0,
-				isBust: false,
+				status: "active",
 				isSelecting: false,
 			}
 			dummies.push(person)
