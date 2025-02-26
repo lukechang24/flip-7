@@ -3,22 +3,26 @@
 import { useState, useEffect } from "react";
 import { withFirebase } from "../Firebase";
 import Game from "./Game";
+import S from "./style"
 import deck from "./deck";
 
 const Home = ({ firebase }) => {
 	const { findRoom, updateRoom, listenToRoom } = firebase
-	const [gameState, setGameState] = useState({
-		deck: [],
+
+	const shuffle = () => deck.sort(() => Math.random() - 0.5);
+	const gameTemplate = {
+		deck: [...shuffle(deck)],
+		discardPile: [],
 		players: [],
-		phase: "",
+		phase: "waiting",
 		whoseTurn: "",
 		isAllBust: false,
 		round: 0
-	});
+	}
+
+	const [gameState, setGameState] = useState(gameTemplate)
 	const [id, setId] = useState(null);
-
-	const shuffle = () => deck.sort(() => Math.random() - 0.5);
-
+	
 	const generateRandomId = () => {
 		let randomId = Math.random().toString(36).substring(2, 15) +
 			  Math.random().toString(36).substring(2, 15);
@@ -56,19 +60,11 @@ const Home = ({ firebase }) => {
 	const startGame = async () => {
 		const randomNum = Math.floor(Math.random() * (gameState.players.length))
 		console.log(randomNum)
-		await updateRoom("room", { whoseTurn: gameState.players[randomNum].id, round: 1})
+		await updateRoom("room", { phase: "playing", whoseTurn: gameState.players[randomNum].id, round: 1})
 	}
 
 	const resetGame = async () => {
-		const cleanGame = {
-			deck: [...shuffle()],
-			players: [],
-			phase: "",
-			whoseTurn: "",
-			isAllBust: false,
-			round: 0
-		}
-		await updateRoom("room", cleanGame);
+		await updateRoom("room", gameTemplate);
 	};
 
 	const populateGame = async () => {
@@ -98,15 +94,7 @@ const Home = ({ firebase }) => {
 
 		const unsubscribe = listenToRoom("room", async (newData) => {
 			if (Object.keys(newData).length === 0) {
-				const cleanGame = {
-					deck: [...shuffle()],
-					players: [],
-					phase: "",
-					whoseTurn: "",
-					isAllBust: false,
-					round: 0
-				};
-				await updateRoom("room", cleanGame)
+				await updateRoom("room", gameTemplate)
 			}
 			if (newData) {
 				setGameState(newData);
@@ -118,12 +106,14 @@ const Home = ({ firebase }) => {
 	return (
 		<div>
 			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} />
-			{gameState.players.find((player) => player.id === id) ? null : (
-				<button onClick={addPlayer}>add player</button>
-			)}
-			<button onClick={startGame}>start game</button>
-			<button onClick={resetGame}>reset lobby</button>
-			<button onClick={populateGame}>populate game</button>
+			<S.ButtonContainer>
+				{gameState.players.find((player) => player.id === id) ? null : (
+					<button onClick={addPlayer}>add player</button>
+				)}
+				<button onClick={startGame}>start game</button>
+				<button onClick={resetGame}>reset lobby</button>
+				<button onClick={populateGame}>populate game</button>
+			</S.ButtonContainer>
 		</div>
 	);
 };
