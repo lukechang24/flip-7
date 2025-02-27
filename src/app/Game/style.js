@@ -33,7 +33,7 @@ S.PlayerContainer = styled.div`
 	flex-direction: ${props => props.position === "bottom" ? "column-reverse" : "column"};
 	justify-content: center;
 	align-items: center;
-	background-color: ${props => props.grayout ? "gray" : "lightblue"};
+	background-color: ${props => props.busted ? "grey" : props.stayed ? "#1976D2" : "lightblue"};
 	border: 5px solid white;
 	&.highlight {
 		border: 5px solid greenyellow;

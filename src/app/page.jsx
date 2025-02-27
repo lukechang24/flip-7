@@ -16,7 +16,7 @@ const Home = ({ firebase }) => {
 		players: [],
 		phase: "waiting",
 		whoseTurn: "",
-		isAllBust: false,
+		// isAllBust: false,
 		round: 0
 	}
 
