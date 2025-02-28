@@ -28,14 +28,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
-		// If they drew a second chance, set it true
-		if (drawnCard.effect === "secondChance") {
-			if (player.secondChance) {
-				updatedDiscardPile.push(player.hand.pop())
-			} else {
-				player.secondChance = true
-			}
-		}
+		handleSpecial(player, drawnCard, updatedPlayers, updatedDiscardPile)
 
 		// If player didn't draw an effect card and they busted
 		if (!drawnCard.effect && checkIfBust(player, drawnCard, updatedDiscardPile)) {
@@ -61,8 +54,19 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   }
 
 
-	const handleSpecial = () => {
-
+	const handleSpecial = (player, card, updatedPlayers, discardPile) => {
+		// If they drew a second chance, set it true
+		if (card.effect === "secondChance") {
+			if (player.secondChance) {
+				let secondChanceIndex = player.hand.findIndex(card => card.effect === "secondChance")
+				setTimeout(async () => {
+					discardPile.push(...player.hand.splice(secondChanceIndex, 1))
+					await updateRoom("room", { discardPile, players: updatedPlayers})
+				}, 50)
+			} else {
+				player.secondChance = true
+			}
+		}
 	}
 
 	const stay = async () => {
@@ -111,7 +115,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			player.status = "flip7"
 			player.points += 15
 			return true
-			// playing, flip7, roundEnd
 		}
 		return false
 	}
@@ -122,7 +125,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
       if (hand[i].value === card.value) {
 				if (player.secondChance) {
 					player.secondChance = false
-					hand.splice(hand.findIndex(card => card.effect === "secondChance"), 1)
+					const secondChanceIndex = hand.findIndex(card => card.effect === "secondChance")
+					discarded.push(...hand.splice(secondChanceIndex, 1))
 					discarded.push(player.hand.pop())
 					return false
 				}
@@ -144,10 +148,10 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
   const startNextRound = async () => {
 		const updatedPlayers = [...players]
-		let discardedCards = []
+		let discardedCards = [...discardPile]
 		for (let i = 0; i < updatedPlayers.length; i++) {
 			const player = updatedPlayers[i]
-			discardedCards = [...discardedCards, ...player.hand]
+			discardedCards.push(...player.hand)
 			player.totalPoints += player.points
 			player.points = 0
 			player.hand = []
@@ -204,11 +208,11 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   const playerList = players ? rotateIds(id, players).map((player, i) => {
 		const regularHandList = player.hand.map((hand, j, arr2) => {
 			const highlight = j === arr2.length - 1;
-			if (hand.value !== null) return <S.Card highlight={highlight}>{hand.value}</S.Card> 
+			if (hand.value !== null) return <S.Card key={j} highlight={highlight}>{hand.value}</S.Card> 
     })
 		const specialHandList = player.hand.map((hand, j, arr2) => {
 			const highlight = j === arr2.length - 1;
-			if (hand.effect) return <S.Card highlight={highlight}>{hand.effect}</S.Card>
+			if (hand.effect) return <S.Card key={j} highlight={highlight}>{hand.effect}</S.Card>
 		})
     return (
       <S.PlayerContainer className={player.id === whoseTurn && phase === "playing" ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } busted={player.status === "busted"} stayed={player.status === "stayed"}>
@@ -220,6 +224,15 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
       </S.PlayerContainer>
     )
   }) : null
+
+	// when cards run out and discard pile gets merged with deck, leave the last element of discard in the pile still
+	const discardList = discardPile ? discardPile.map((card, i, arr) => {
+		console.log(arr.length)
+		if (i > arr.length - 6) {
+			return <S.DiscardCard shift={i - (arr.length - 5)}>{card.effect || card.value}</S.DiscardCard>
+		}
+	}) : null
+
   return (
     (!players || !id)
       ?
@@ -232,6 +245,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
+				<S.DiscardPile>{discardList}</S.DiscardPile>
       </S.Container1>
   )
 }

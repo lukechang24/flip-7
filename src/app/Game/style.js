@@ -52,14 +52,22 @@ S.HandContainer = styled.div`
 
 S.Card = styled.div`
   margin: 0 2.5px;
-  // opacity: 0;
   transition: opacity 1s ease-in;
   animation: ${props => props.highlight ? "fadeIn 0.3s forwards" : "none"};
-
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+`
+
+S.DiscardPile = styled.div`
+	position: relative;
+`
+
+S.DiscardCard = styled.div`
+		position: absolute;
+		left: ${props => props.shift ? `${props.shift * 10}px` : "0"};
+		top: ${props => props.shift ? `${props.shift * 10}px` : "0"};
 `
 
 S.Points = styled.p`
@@ -73,5 +81,6 @@ S.TotalPoints = styled.p`
 	bottom: 0;
 	right: 0;
 `
+
 
 export default S
