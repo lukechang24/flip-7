@@ -20,6 +20,18 @@ const Home = ({ firebase }) => {
 		round: 0
 	}
 
+	const playerTemplate = {
+		id: "",
+		name: "",
+		hand: [],
+		points: 0,
+		totalPoints: 0,
+		status: "active",
+		isSelecting: false,
+		secondChance: false,
+		remainingDraws: 0
+	}
+
 	const [gameState, setGameState] = useState(gameTemplate)
 	const [id, setId] = useState(null);
 	
@@ -43,13 +55,9 @@ const Home = ({ firebase }) => {
 		if (checkIfExists(id, roomData.players)) return;
 
 		const newPlayer = {
+			...playerTemplate,
 			id,
-			name: `player${roomData.players.length + 1}`,
-			hand: [],
-			points: 0,
-			totalPoints: 0,
-			status: "active",
-			isSelecting: false,
+			name: `player${roomData.players.length + 1}`
 		};
 
 		await updateRoom("room", {
@@ -71,16 +79,12 @@ const Home = ({ firebase }) => {
 		if (gameState.players.length > 5) return
 		const dummies = []
 		for (let i = 0; i < 1; i++) {
-			const person = {
+			const player = {
+				...playerTemplate,
 				id: generateRandomId(),
-				name: `player${gameState.players.length + 1}`,
-				hand: [],
-				points: 0,
-				totalPoints: 0,
-				status: "active",
-				isSelecting: false,
+				name: `player${gameState.players.length + 1}`
 			}
-			dummies.push(person)
+			dummies.push(player)
 		}
 		await updateRoom("room", { players: [...gameState.players, ...dummies] })
 	}
@@ -105,7 +109,7 @@ const Home = ({ firebase }) => {
 
 	return (
 		<div>
-			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} />
+			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} shuffle={shuffle}/>
 			<S.ButtonContainer>
 				{gameState.players.find((player) => player.id === id) ? null : (
 					<button onClick={addPlayer}>add player</button>

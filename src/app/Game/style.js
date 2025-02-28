@@ -30,9 +30,8 @@ S.PlayerContainer = styled.div`
 	width: var(--box-width);
 	height: var(--box-height);
 	display: flex;
-	flex-direction: ${props => props.position === "bottom" ? "column-reverse" : "column"};
-	justify-content: center;
-	align-items: center;
+	// flex-direction: ${props => props.position === "bottom" ? "column-reverse" : "column"};
+	flex-direction: column;
 	background-color: ${props => props.busted ? "grey" : props.stayed ? "#1976D2" : "lightblue"};
 	border: 5px solid white;
 	&.highlight {
@@ -43,15 +42,24 @@ S.PlayerContainer = styled.div`
 S.Name = styled.h3`
 	position: absolute;
 	bottom: 0;
+	width: 100%;
+	text-align: center;
 `
 
 S.HandContainer = styled.div`
 	display: flex;
-	flex-wrap: wrap;
 `
 
 S.Card = styled.div`
-	margin: 0 2.5px;
+  margin: 0 2.5px;
+  // opacity: 0;
+  transition: opacity 1s ease-in;
+  animation: ${props => props.highlight ? "fadeIn 0.3s forwards" : "none"};
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 `
 
 S.Points = styled.p`
