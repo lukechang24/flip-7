@@ -82,5 +82,20 @@ S.TotalPoints = styled.p`
 	right: 0;
 `
 
+S.SelectContainer = styled.div`
+	position: absolute;
+	top: calc((100vh / 2) - 50px);
+	left: calc((100vw / 2) - 75px);
+	width: 150px;
+	height: 100px;
+	display: ${props => props.show ? "flex" : "none"};
+	flex-direction: column;
+	background-color: grey;
+	opacity: 60%;
+`
+
+S.SelectName = styled.button`
+
+`
 
 export default S

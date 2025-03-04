@@ -8,6 +8,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   const { findRoom, updateRoom } = firebase
   const { deck, discardPile, phase, players, whoseTurn, round } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
+	const [selectedPlayer, setSelectedPlayer] = useState("")
+
   const draw = async (i = null) => {
     let updatedDeck = [...deck]
 		let updatedDiscardPile = [...discardPile]
@@ -20,6 +22,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			updatedDiscardPile = []
 		}
 
+		// code is for mock player 3
 		i = i ? i : updatedPlayers.findIndex(player => player.id === id)
 
 		const player = updatedPlayers[i]
@@ -28,10 +31,16 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
-		handleSpecial(player, drawnCard, updatedPlayers, updatedDiscardPile)
-
-		// If player didn't draw an effect card and they busted
-		if (!drawnCard.effect && checkIfBust(player, drawnCard, updatedDiscardPile)) {
+		if (["secondChance", "draw3", "freeze"].includes(drawnCard.effect)) {
+			let newPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile)
+			//if phase is changed to selecting, player is selecting a person to play an effect card so stop code here
+			if (newPhase) {
+				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: newPhase })
+				return
+			}
+		}
+		// If player didn't draw any other effect card and they busted
+		else if (!drawnCard.effect && checkIfBust(player, drawnCard, updatedDiscardPile)) {
 			player.status = "busted"
 			player.points = 0
 
@@ -42,6 +51,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		// Updating turn to next player, this time including busted players
 		const isWinner = checkIfWin(player)
 		if (isWinner) {
+			// End the round
 			let updatedWhoseTurn = updatedPlayers[wrapIndex(i + 1, players)] ? players[wrapIndex(i + 1, players)].id : ""
 			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn })
 			return
@@ -54,19 +64,30 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   }
 
 
-	const handleSpecial = (player, card, updatedPlayers, discardPile) => {
+	const handleSpecial = (player, card, players, currIndex, discardPile, phase) => {
 		// If they drew a second chance, set it true
 		if (card.effect === "secondChance") {
 			if (player.secondChance) {
 				let secondChanceIndex = player.hand.findIndex(card => card.effect === "secondChance")
-				setTimeout(async () => {
-					discardPile.push(...player.hand.splice(secondChanceIndex, 1))
-					await updateRoom("room", { discardPile, players: updatedPlayers})
-				}, 50)
+				discardPile.push(...player.hand.splice(secondChanceIndex, 1))
 			} else {
 				player.secondChance = true
 			}
+			return false
+		} else {
+			player.isSelecting = true
+			// distinguishing so handleSelect() can tell what to do after selection
+			phase = card.effect === "draw3" ? "selectingDraw3" : "selectingFreeze"
+			const nextId = players[wrapIndex(currIndex + 1, players)] ? players[wrapIndex(currIndex + 1, players)].id : ""
+			let savedNextPlayer = players.find(player => player.id === nextId)
+			savedNextPlayer.status = "next"
+			return phase
 		}
+	}
+
+	const handleSelect = () => {
+		
+		// make sure set the players isSelecting back to false at the end
 	}
 
 	const stay = async () => {
@@ -215,7 +236,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			if (hand.effect) return <S.Card key={j} highlight={highlight}>{hand.effect}</S.Card>
 		})
     return (
-      <S.PlayerContainer className={player.id === whoseTurn && phase === "playing" ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } busted={player.status === "busted"} stayed={player.status === "stayed"}>
+      <S.PlayerContainer className={player.id === whoseTurn && phase !== "roundEnd" ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } busted={player.status === "busted"} stayed={player.status === "stayed"}>
         <S.HandContainer>{regularHandList}</S.HandContainer>
 				<S.HandContainer>{specialHandList}</S.HandContainer>
         <S.Points>{player.points}</S.Points>
@@ -233,6 +254,11 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		}
 	}) : null
 
+	const selectList = players ? players.map(player => {
+		// make sure players who busted or stayed don't show up in the list
+		if (!player.isSelecting || player.status !== "busted" || player.status !== "stayed" ) return <S.SelectName onClick={() => handleSelect(player.id)}>{player.name}</S.SelectName>
+	}) : null
+
   return (
     (!players || !id)
       ?
@@ -240,12 +266,15 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
       :
 
       <S.Container1>
-        <button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase ==="roundEnd"}>draw</button>
-        <button onClick={() => draw(2)} disabled={phase ==="roundEnd" || phase === "waiting"}>drawMock</button>
-				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id}>stay</button>
+        <button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
+        <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock</button>
+				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id || phase !== "playing"}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
 				<S.DiscardPile>{discardList}</S.DiscardPile>
+				<S.SelectContainer show={thisPlayer.isSelecting}>
+					{selectList}
+				</S.SelectContainer>
       </S.Container1>
   )
 }
