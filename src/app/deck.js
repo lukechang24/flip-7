@@ -14,7 +14,7 @@ const deck = [
     { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null }, { value: 12, effect: null },
     { value: null, effect: "plus2" }, { value: null, effect: "plus4" }, { value: null, effect: "plus6" }, { value: null, effect: "plus8" }, { value: null, effect: "plus10" }, { value: null, effect: "times2" },
     { value: null, effect: "secondChance" }, { value: null, effect: "secondChance" }, { value: null, effect: "secondChance" },
-    { value: null, effect: "draw3" }, { value: null, effect: "draw3" }, { value: null, effect: "draw3" },
+    { value: null, effect: "flip3" }, { value: null, effect: "flip3" }, { value: null, effect: "flip3" },
     { value: null, effect: "freeze" }, { value: null, effect: "freeze" }, { value: null, effect: "freeze" }
   ];
   

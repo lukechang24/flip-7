@@ -8,7 +8,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   const { findRoom, updateRoom } = firebase
   const { deck, discardPile, phase, players, whoseTurn, round } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
-	const [selectedPlayer, setSelectedPlayer] = useState("")
+	// const [selectedPlayer, setSelectedPlayer] = useState("")
 
   const draw = async (i = null) => {
     let updatedDeck = [...deck]
@@ -31,7 +31,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
-		if (["secondChance", "draw3", "freeze"].includes(drawnCard.effect)) {
+		if (["secondChance", "flip3", "freeze"].includes(drawnCard.effect)) {
 			let newPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile)
 			//if phase is changed to selecting, player is selecting a person to play an effect card so stop code here
 			if (newPhase) {
@@ -75,19 +75,37 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			}
 			return false
 		} else {
-			player.isSelecting = true
+			// else they drew freeze or flip3
 			// distinguishing so handleSelect() can tell what to do after selection
-			phase = card.effect === "draw3" ? "selectingDraw3" : "selectingFreeze"
-			const nextId = players[wrapIndex(currIndex + 1, players)] ? players[wrapIndex(currIndex + 1, players)].id : ""
-			let savedNextPlayer = players.find(player => player.id === nextId)
-			savedNextPlayer.status = "next"
+			if (card.effect === "flip3") {
+				const nextId = players[wrapIndex(currIndex + 1, players)] ? players[wrapIndex(currIndex + 1, players)].id : ""
+				let savedNextPlayer = players.find(player => player.id === nextId)
+				savedNextPlayer.status = "upNext"
+			}
+			player.isSelecting = true
+			phase = card.effect === "flip3" ? "selectingFlip3" : "selectingFreeze"
 			return phase
 		}
 	}
 
-	const handleSelect = () => {
-		
-		// make sure set the players isSelecting back to false at the end
+	const handleSelect = async (id) => {
+		let updatedPlayers = [...players]
+		let selectorIndex = updatedPlayers.findIndex(player => player.isSelecting)
+		let updatedDiscardPile = [...discardPile]
+		if (phase === "selectingFreeze") {
+			// find player who got freezed and force them to stay
+			updatedPlayers.find(player => player.id === id).status = "stayed"
+			updatedPlayers[selectorIndex].isSelecting = false
+			updatedDiscardPile.push(updatedPlayers[selectorIndex].hand.pop())
+			let updatedWhoseTurn = updatedPlayers[wrapIndex(selectorIndex + 1, updatedPlayers)] ? updatedPlayers[wrapIndex(selectorIndex + 1, updatedPlayers)].id : ""
+	
+			if (updatedPlayers[selectorIndex].status === "stayed") {
+				await updateRoom("room", { discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: "", phase: "roundEnd" })
+			} else {
+				await updateRoom("room", { discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, phase: "playing" })
+			}
+		}
+		// remove freeze from their hand
 	}
 
 	const stay = async () => {
@@ -189,8 +207,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
     let newIndex = ((index % arr.length) + arr.length) % arr.length  
 
     const isBustedOrStayed = arr[newIndex].status === "busted" || arr[newIndex].status === "stayed"  
-    const noFlip7 = !arr.some(player => player.status === "flip7")  
-    const roundNotOver = !arr.every(player => player.status === "busted" || player.status === "stayed")  
+    const noFlip7 = !arr.some(player => player.status === "flip7") 
+    const roundNotOver = !arr.every(player => player.status === "busted" || player.status === "stayed")
 
     if (isBustedOrStayed && noFlip7 && roundNotOver) {
         return wrapIndex(index + 1, arr, counter + 1)  
@@ -256,7 +274,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
 	const selectList = players ? players.map(player => {
 		// make sure players who busted or stayed don't show up in the list
-		if (!player.isSelecting || player.status !== "busted" || player.status !== "stayed" ) return <S.SelectName onClick={() => handleSelect(player.id)}>{player.name}</S.SelectName>
+		if (player.status !== "busted" && player.status !== "stayed" ) return <S.SelectName onClick={() => handleSelect(player.id)}>{player.name}</S.SelectName>
 	}) : null
 
   return (
