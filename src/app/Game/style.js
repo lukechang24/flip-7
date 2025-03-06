@@ -53,7 +53,8 @@ S.HandContainer = styled.div`
 S.Card = styled.div`
   margin: 0 2.5px;
   transition: opacity 1s ease-in;
-  animation: ${props => props.highlight ? "fadeIn 0.3s forwards" : "none"};
+  animation: ${props => props.animate ? "fadeIn 0.3s forwards" : "none"};
+	border: ${props => props.duplicate ? "1px solid red" : "1px solid transparent"};
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }

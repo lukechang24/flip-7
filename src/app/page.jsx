@@ -67,7 +67,6 @@ const Home = ({ firebase }) => {
 
 	const startGame = async () => {
 		const randomNum = Math.floor(Math.random() * (gameState.players.length))
-		console.log(randomNum)
 		await updateRoom("room", { phase: "playing", whoseTurn: gameState.players[randomNum].id, round: 1})
 	}
 

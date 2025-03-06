@@ -48,16 +48,31 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
 		calculatePoints(updatedPlayers)
 
+		// if their status is "flipping3"
+		// FIX IF PLAYER DRAWS FLIP 3 OR FREEZE DURING FLIP 3
+		if (player.status.indexOf("flipping") >= 0) {
+			let updatedStatus = ""
+
+			if (player.status.slice(-1) === "1") {
+				updatedStatus = "active"
+				updatedWhoseTurn = updatedPlayers.find(player => player.status === "upNext").id
+			} else {
+				updatedStatus = `flipping${player.status.slice(-1) - 1}`
+				updatedWhoseTurn = player.id
+			}
+			player.status = updatedStatus
+		} else {
+			updatedWhoseTurn = nextTurnId(updatedPlayers, i)
+		}
+		// if ()
+
 		// Updating turn to next player, this time including busted players
 		const isWinner = checkIfWin(player)
 		if (isWinner) {
 			// End the round
-			let updatedWhoseTurn = updatedPlayers[wrapIndex(i + 1, players)] ? players[wrapIndex(i + 1, players)].id : ""
 			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn })
 			return
 		}
-
-		updatedWhoseTurn = updatedPlayers[wrapIndex(i + 1, updatedPlayers)] ? updatedPlayers[wrapIndex(i + 1, updatedPlayers)].id : ""
 
     await updateRoom("room", { deck: updatedDeck, discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn })
 		checkIfAllBust(updatedPlayers)
@@ -92,20 +107,32 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		let updatedPlayers = [...players]
 		let selectorIndex = updatedPlayers.findIndex(player => player.isSelecting)
 		let updatedDiscardPile = [...discardPile]
+		let updatedPhase = ""
+		let updatedWhoseTurn = ""
+
+		updatedPlayers[selectorIndex].isSelecting = false
+		updatedDiscardPile.push(updatedPlayers[selectorIndex].hand.pop())
+
+		// find player who got freezed and force them to stay
 		if (phase === "selectingFreeze") {
-			// find player who got freezed and force them to stay
+			updatedWhoseTurn = nextTurnId(updatedPlayers, selectorIndex)
 			updatedPlayers.find(player => player.id === id).status = "stayed"
-			updatedPlayers[selectorIndex].isSelecting = false
-			updatedDiscardPile.push(updatedPlayers[selectorIndex].hand.pop())
-			let updatedWhoseTurn = updatedPlayers[wrapIndex(selectorIndex + 1, updatedPlayers)] ? updatedPlayers[wrapIndex(selectorIndex + 1, updatedPlayers)].id : ""
 	
-			if (updatedPlayers[selectorIndex].status === "stayed") {
-				await updateRoom("room", { discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: "", phase: "roundEnd" })
+			// If selected player is the selector themselves, end gam
+			if (updatedPlayers[selectorIndex].status === "stayed" && updatedWhoseTurn === thisPlayer.id) {
+				updatedPhase = "roundEnd"
+				updatedWhoseTurn = ""
 			} else {
-				await updateRoom("room", { discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, phase: "playing" })
+				// else continue playing
+				updatedPhase = "playing"
 			}
+		} else {
+			// phase is selectingFlip3
+			updatedWhoseTurn = id
+			updatedPlayers.find(player => player.id === id).status = "flipping3"
+			updatedPhase = "playing"
 		}
-		// remove freeze from their hand
+		await updateRoom("room", { discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, phase: updatedPhase})
 	}
 
 	const stay = async () => {
@@ -118,11 +145,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		//implement if last person decides to stay and end the round
 		checkIfAllBust(updatedPlayers)
 		await updateRoom("room", { players: updatedPlayers, whoseTurn: updatedWhoseTurn })
-	}
-
-	//implement to make setting whoseturn less chunky
-	const nextTurnId = (players, index) => {
-		return players[wrapIndex(index + 1, players)] ? players[wrapIndex(index + 1, players)].id : ""
 	}
 	
   const calculatePoints = (arr) => {
@@ -178,7 +200,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 	const checkIfAllBust = async (players) => {
 		if (players.every(player => player.status === "busted" || player.status === "stayed") && players.length !== 0) {
 			const currIndex = players.findIndex((player) => player.id === id)
-			let updatedWhoseTurn = players[wrapIndex(currIndex + 1, players)] ? players[wrapIndex(currIndex + 1, players)].id : ""
+			let updatedWhoseTurn = nextTurnId(players, currIndex)
 			await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
 			return true
 		}
@@ -200,6 +222,11 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		}
 		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", round: round + 1 })
   }
+
+	//implement to make setting whoseturn less chunky
+	const nextTurnId = (players, index) => {
+		return players[wrapIndex(index + 1, players)] ? players[wrapIndex(index + 1, players)].id : ""
+	}
 
   const wrapIndex = (index, arr, counter = 0) => {
     if (counter >= arr.length) return null  
@@ -246,12 +273,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
   const playerList = players ? rotateIds(id, players).map((player, i) => {
 		const regularHandList = player.hand.map((hand, j, arr2) => {
-			const highlight = j === arr2.length - 1;
-			if (hand.value !== null) return <S.Card key={j} highlight={highlight}>{hand.value}</S.Card> 
+			const animate = j === arr2.length - 1;
+			const duplicate = arr2.findIndex(card => card.value === hand.value) !== arr2.findLastIndex(card => card.value === hand.value)
+			if (hand.value !== null) return <S.Card key={j} animate={animate} duplicate={duplicate}>{hand.value}</S.Card> 
     })
 		const specialHandList = player.hand.map((hand, j, arr2) => {
-			const highlight = j === arr2.length - 1;
-			if (hand.effect) return <S.Card key={j} highlight={highlight}>{hand.effect}</S.Card>
+			const animate = j === arr2.length - 1;
+			if (hand.effect) return <S.Card key={j} animate={animate}>{hand.effect}</S.Card>
 		})
     return (
       <S.PlayerContainer className={player.id === whoseTurn && phase !== "roundEnd" ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } busted={player.status === "busted"} stayed={player.status === "stayed"}>
@@ -266,7 +294,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
 	// when cards run out and discard pile gets merged with deck, leave the last element of discard in the pile still
 	const discardList = discardPile ? discardPile.map((card, i, arr) => {
-		console.log(arr.length)
 		if (i > arr.length - 6) {
 			return <S.DiscardCard shift={i - (arr.length - 5)}>{card.effect || card.value}</S.DiscardCard>
 		}
