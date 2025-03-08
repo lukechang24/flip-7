@@ -6,7 +6,7 @@ import originalDeck from "../deck"
 
 const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   const { findRoom, updateRoom } = firebase
-  const { deck, discardPile, phase, players, whoseTurn, round } = gameState
+  const { deck, discardPile, phase, players, whoseTurn, round, resolveSpecial } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
 	// const [selectedPlayer, setSelectedPlayer] = useState("")
 
@@ -15,6 +15,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		let updatedDiscardPile = [...discardPile]
     let updatedPlayers = [...players]
     let updatedWhoseTurn = ""
+		let updatedResolveSpecial = resolveSpecial
 
 		// If deck is empty, shuffle discard pile and set it to updatedDeck
 		if (updatedDeck.length === 0 && updatedDiscardPile.length > 0) {
@@ -31,11 +32,37 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
+		// if their status is "flipping3"
+		// FIX IF PLAYER DRAWS FLIP 3 OR FREEZE DURING FLIP 3
+		// FIX IF PLAYER DIES DURING FLIP 3
+		if (player.status.indexOf("flipping") >= 0) {
+			let updatedStatus = ""
+
+			if (player.status.slice(-1) === "1") {
+				updatedStatus = "active"
+				const nextPlayer = updatedPlayers.find(player => player.status === "upNext")
+				nextPlayer.status = "active"
+				updatedWhoseTurn = nextPlayer.id
+
+			} else {
+				updatedStatus = `flipping${player.status.slice(-1) - 1}`
+				updatedWhoseTurn = player.id
+			}
+			player.status = updatedStatus
+
+			// if player draws flip3 or freeze during their flip3, skip handleSpecial
+			if (drawnCard.effect === "flip3" || drawnCard.effect === "freeze") {
+				updatedResolveSpecial = true
+			}
+		} else {
+			updatedWhoseTurn = nextTurnId(updatedPlayers, i)
+		}
+
 		if (["secondChance", "flip3", "freeze"].includes(drawnCard.effect)) {
-			let newPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile)
+			let specialPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial)
 			//if phase is changed to selecting, player is selecting a person to play an effect card so stop code here
-			if (newPhase) {
-				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: newPhase })
+			if (specialPhase) {
+				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase })
 				return
 			}
 		}
@@ -47,24 +74,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		}
 
 		calculatePoints(updatedPlayers)
-
-		// if their status is "flipping3"
-		// FIX IF PLAYER DRAWS FLIP 3 OR FREEZE DURING FLIP 3
-		if (player.status.indexOf("flipping") >= 0) {
-			let updatedStatus = ""
-
-			if (player.status.slice(-1) === "1") {
-				updatedStatus = "active"
-				updatedWhoseTurn = updatedPlayers.find(player => player.status === "upNext").id
-			} else {
-				updatedStatus = `flipping${player.status.slice(-1) - 1}`
-				updatedWhoseTurn = player.id
-			}
-			player.status = updatedStatus
-		} else {
-			updatedWhoseTurn = nextTurnId(updatedPlayers, i)
-		}
-		// if ()
 
 		// Updating turn to next player, this time including busted players
 		const isWinner = checkIfWin(player)
@@ -79,7 +88,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   }
 
 
-	const handleSpecial = (player, card, players, currIndex, discardPile, phase) => {
+	const handleSpecial = (player, card, players, currIndex, discardPile, resolveSpecial) => {
 		// If they drew a second chance, set it true
 		if (card.effect === "secondChance") {
 			if (player.secondChance) {
@@ -90,16 +99,23 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			}
 			return false
 		} else {
+			// if theres a special to resolve, don't do these.
+			if (resolveSpecial) return false
+
 			// else they drew freeze or flip3
 			// distinguishing so handleSelect() can tell what to do after selection
 			if (card.effect === "flip3") {
 				const nextId = players[wrapIndex(currIndex + 1, players)] ? players[wrapIndex(currIndex + 1, players)].id : ""
 				let savedNextPlayer = players.find(player => player.id === nextId)
-				savedNextPlayer.status = "upNext"
+
+				// if player pulls flip3 during their flip3, don't save "upNext"
+				if (!resolveSpecial) {
+					savedNextPlayer.status = "upNext"
+				}
 			}
 			player.isSelecting = true
-			phase = card.effect === "flip3" ? "selectingFlip3" : "selectingFreeze"
-			return phase
+			let updatedPhase = card.effect === "flip3" ? "selectingFlip3" : "selectingFreeze"
+			return updatedPhase
 		}
 	}
 
@@ -115,13 +131,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
 		// find player who got freezed and force them to stay
 		if (phase === "selectingFreeze") {
-			updatedWhoseTurn = nextTurnId(updatedPlayers, selectorIndex)
 			updatedPlayers.find(player => player.id === id).status = "stayed"
+			updatedWhoseTurn = nextTurnId(updatedPlayers, selectorIndex)
 	
-			// If selected player is the selector themselves, end gam
+			// If selected player is the selector themselves, end game
 			if (updatedPlayers[selectorIndex].status === "stayed" && updatedWhoseTurn === thisPlayer.id) {
 				updatedPhase = "roundEnd"
-				updatedWhoseTurn = ""
 			} else {
 				// else continue playing
 				updatedPhase = "playing"
@@ -200,8 +215,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 	const checkIfAllBust = async (players) => {
 		if (players.every(player => player.status === "busted" || player.status === "stayed") && players.length !== 0) {
 			const currIndex = players.findIndex((player) => player.id === id)
-			let updatedWhoseTurn = nextTurnId(players, currIndex)
-			await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
+			// let updatedWhoseTurn = nextTurnId(players, currIndex)
+			// await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
+			await updateRoom("room", { phase: "roundEnd" })
 			return true
 		}
 		return false
@@ -209,6 +225,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
   const startNextRound = async () => {
 		const updatedPlayers = [...players]
+		const currIndex = updatedPlayers.findIndex(player => player.id === whoseTurn)
 		let discardedCards = [...discardPile]
 		for (let i = 0; i < updatedPlayers.length; i++) {
 			const player = updatedPlayers[i]
@@ -220,7 +237,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			player.secondChance = false
 			player.remainingDraws = 0
 		}
-		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", round: round + 1 })
+		const updatedWhoseTurn = nextTurnId(updatedPlayers, currIndex)
+		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", whoseTurn: updatedWhoseTurn, round: round + 1 })
   }
 
 	//implement to make setting whoseturn less chunky
@@ -229,13 +247,19 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 	}
 
   const wrapIndex = (index, arr, counter = 0) => {
-    if (counter >= arr.length) return null  
+		// making sure counter doesnt loop too many times
+    if (counter >= arr.length) return null
 
     let newIndex = ((index % arr.length) + arr.length) % arr.length  
-
+		
     const isBustedOrStayed = arr[newIndex].status === "busted" || arr[newIndex].status === "stayed"  
     const noFlip7 = !arr.some(player => player.status === "flip7") 
     const roundNotOver = !arr.every(player => player.status === "busted" || player.status === "stayed")
+		
+		// meaning everyone had busted or stayed, just return whoever's turn it was initially
+		if (!roundNotOver) {
+			return index - 1
+		}
 
     if (isBustedOrStayed && noFlip7 && roundNotOver) {
         return wrapIndex(index + 1, arr, counter + 1)  
