@@ -17,6 +17,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
     let updatedWhoseTurn = ""
 		let updatedResolveSpecial = resolveSpecial
 
+		let skipSpecial = true
+
 		// If deck is empty, shuffle discard pile and set it to updatedDeck
 		if (updatedDeck.length === 0 && updatedDiscardPile.length > 0) {
 			updatedDeck = shuffle(updatedDiscardPile)
@@ -32,28 +34,41 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
+		// just to make it so player3 Cant draw any effect
+		if (i === 2 ) {
+			if (drawnCard.effect) {
+				drawnCard.effect = "plus2"
+
+			}
+		}
 		// if their status is "flipping3"
 		// FIX IF PLAYER DRAWS FLIP 3 OR FREEZE DURING FLIP 3
 		// FIX IF PLAYER DIES DURING FLIP 3
+		// WHO IS UPNEXT if SELECTOR CHOOSES SOMEONE RIGHT AFTER HIM
+
+		// flip3 should stop if they flip3, bust, or have 7 unique cards
+		// the three flipped card should be in the center
 		if (player.status.indexOf("flipping") >= 0) {
+			// if player draws flip3 or freeze during their flip3, resolvespecial is true
+			if (drawnCard.effect === "flip3" || drawnCard.effect === "freeze") {
+				updatedResolveSpecial = true
+			}
 			let updatedStatus = ""
 
 			if (player.status.slice(-1) === "1") {
+				// else continue to upNext player
+				if (updatedResolveSpecial) {
+					skipSpecial = false
+				}
 				updatedStatus = "active"
-				const nextPlayer = updatedPlayers.find(player => player.status === "upNext")
-				nextPlayer.status = "active"
+				const nextPlayer = updatedPlayers.find(player => player.upNext)
+				nextPlayer.upNext = false
 				updatedWhoseTurn = nextPlayer.id
-
 			} else {
 				updatedStatus = `flipping${player.status.slice(-1) - 1}`
 				updatedWhoseTurn = player.id
 			}
 			player.status = updatedStatus
-
-			// if player draws flip3 or freeze during their flip3, skip handleSpecial
-			if (drawnCard.effect === "flip3" || drawnCard.effect === "freeze") {
-				updatedResolveSpecial = true
-			}
 		} else {
 			updatedWhoseTurn = nextTurnId(updatedPlayers, i)
 		}
@@ -71,6 +86,18 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			player.status = "busted"
 			player.points = 0
 
+			// If busted player is admist flipping, stop flipping phase and move to next person
+			if (player.status.indexOf("flipping") >= 0) {
+				const nextPlayer = updatedPlayers.find(player => player.upNext)
+				nextPlayer.upNext = false
+				// FIX THIS WHOEL PART
+				// If nextplayer and flipping player were the same person
+				if (nextPlayer.status === "busted") {
+					updatedWhoseTurn = nextTurnId(updatedPlayers, i)
+				} else {
+					updatedWhoseTurn = nextPlayer.id
+				}
+			}
 		}
 
 		calculatePoints(updatedPlayers)
@@ -79,16 +106,25 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		const isWinner = checkIfWin(player)
 		if (isWinner) {
 			// End the round
-			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn })
+			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn, resolveSpecial: false })
 			return
 		}
 
-    await updateRoom("room", { deck: updatedDeck, discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn })
+		// if theres a special to resolve, after drawing last flip3 card, resolve special
+		if (updatedResolveSpecial && !skipSpecial) {
+			updatedResolveSpecial = false
+			const specialCard = player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")
+			const specialPhase = handleSpecial(player, specialCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial, skipSpecial)
+			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, resolveSpecial: updatedResolveSpecial })
+			return
+		}
+
+    await updateRoom("room", { deck: updatedDeck, discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, resolveSpecial: updatedResolveSpecial })
 		checkIfAllBust(updatedPlayers)
   }
 
 
-	const handleSpecial = (player, card, players, currIndex, discardPile, resolveSpecial) => {
+	const handleSpecial = (player, card, players, currIndex, discardPile, resolveSpecial, skip) => {
 		// If they drew a second chance, set it true
 		if (card.effect === "secondChance") {
 			if (player.secondChance) {
@@ -110,7 +146,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 
 				// if player pulls flip3 during their flip3, don't save "upNext"
 				if (!resolveSpecial) {
-					savedNextPlayer.status = "upNext"
+					savedNextPlayer.upNext = true
 				}
 			}
 			player.isSelecting = true
@@ -125,9 +161,10 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		let updatedDiscardPile = [...discardPile]
 		let updatedPhase = ""
 		let updatedWhoseTurn = ""
+		const specialCardIndex = updatedPlayers[selectorIndex].hand.findIndex(card => card.effect === "freeze" || card.effect === "flip3")
 
 		updatedPlayers[selectorIndex].isSelecting = false
-		updatedDiscardPile.push(updatedPlayers[selectorIndex].hand.pop())
+		updatedDiscardPile.push(...updatedPlayers[selectorIndex].hand.splice(specialCardIndex, 1))
 
 		// find player who got freezed and force them to stay
 		if (phase === "selectingFreeze") {
@@ -135,7 +172,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 			updatedWhoseTurn = nextTurnId(updatedPlayers, selectorIndex)
 	
 			// If selected player is the selector themselves, end game
-			if (updatedPlayers[selectorIndex].status === "stayed" && updatedWhoseTurn === thisPlayer.id) {
+			if (updatedPlayers[selectorIndex].status === "stayed" && updatedWhoseTurn === id) {
 				updatedPhase = "roundEnd"
 			} else {
 				// else continue playing
@@ -312,6 +349,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
         <S.Points>{player.points}</S.Points>
         <S.Name>{player.name}</S.Name>
 				<S.TotalPoints>{player.totalPoints}</S.TotalPoints>
+				{
+					player.upNext ?
+						<p>I'm UP NEXT</p>
+					:
+						null
+				}
       </S.PlayerContainer>
     )
   }) : null

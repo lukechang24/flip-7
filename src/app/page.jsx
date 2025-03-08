@@ -30,7 +30,7 @@ const Home = ({ firebase }) => {
 		status: "active",
 		isSelecting: false,
 		secondChance: false,
-		remainingDraws: 0
+		upNext: false
 	}
 
 	const [gameState, setGameState] = useState(gameTemplate)
