@@ -43,14 +43,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		}
 		// if their status is "flipping3"
 		// FIX IF PLAYER DRAWS FLIP 3 OR FREEZE DURING FLIP 3
-		// FIX IF PLAYER DIES DURING FLIP 3
 		// WHO IS UPNEXT if SELECTOR CHOOSES SOMEONE RIGHT AFTER HIM
-
+		// HANDLE CHAIN FLIP 3
 		// flip3 should stop if they flip3, bust, or have 7 unique cards
 		// the three flipped card should be in the center
 		if (player.status.indexOf("flipping") >= 0) {
 			// if player draws flip3 or freeze during their flip3, resolvespecial is true
-			if (drawnCard.effect === "flip3" || drawnCard.effect === "freeze") {
+			if (player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")) {
 				updatedResolveSpecial = true
 			}
 			let updatedStatus = ""
@@ -59,11 +58,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 				// else continue to upNext player
 				if (updatedResolveSpecial) {
 					skipSpecial = false
+				} else {
+					updatedStatus = "active"
+					const nextPlayer = updatedPlayers.find(player => player.upNext)
+					nextPlayer.upNext = false
+					updatedWhoseTurn = nextPlayer.id
 				}
-				updatedStatus = "active"
-				const nextPlayer = updatedPlayers.find(player => player.upNext)
-				nextPlayer.upNext = false
-				updatedWhoseTurn = nextPlayer.id
 			} else {
 				updatedStatus = `flipping${player.status.slice(-1) - 1}`
 				updatedWhoseTurn = player.id
@@ -83,14 +83,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 		}
 		// If player didn't draw any other effect card and they busted
 		else if (!drawnCard.effect && checkIfBust(player, drawnCard, updatedDiscardPile)) {
-			player.status = "busted"
-			player.points = 0
-
 			// If busted player is admist flipping, stop flipping phase and move to next person
 			if (player.status.indexOf("flipping") >= 0) {
+				player.status = "busted"
 				const nextPlayer = updatedPlayers.find(player => player.upNext)
 				nextPlayer.upNext = false
-				// FIX THIS WHOEL PART
+
 				// If nextplayer and flipping player were the same person
 				if (nextPlayer.status === "busted") {
 					updatedWhoseTurn = nextTurnId(updatedPlayers, i)
@@ -98,6 +96,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 					updatedWhoseTurn = nextPlayer.id
 				}
 			}
+			player.status = "busted"
+			player.points = 0
 		}
 
 		calculatePoints(updatedPlayers)
@@ -124,7 +124,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
   }
 
 
-	const handleSpecial = (player, card, players, currIndex, discardPile, resolveSpecial, skip) => {
+	const handleSpecial = (player, card, players, currIndex, discardPile, resolveSpecial, skip = true) => {
 		// If they drew a second chance, set it true
 		if (card.effect === "secondChance") {
 			if (player.secondChance) {
@@ -145,7 +145,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 				let savedNextPlayer = players.find(player => player.id === nextId)
 
 				// if player pulls flip3 during their flip3, don't save "upNext"
-				if (!resolveSpecial) {
+				if (skip) {
 					savedNextPlayer.upNext = true
 				}
 			}
@@ -327,6 +327,18 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
     return match ? parseInt(match[0], 10) : null
   }
 
+	const addFlip3 = async () => {
+		let updatedDeck = [...deck]
+		updatedDeck[deck.length - 1] = { value: null, effect: "flip3" }
+		await updateRoom("room", { deck: updatedDeck })
+	}
+
+	const addFreeze = async () => {
+		let updatedDeck = [...deck]
+		updatedDeck[deck.length - 1] = { value: null, effect: "freeze" }
+		await updateRoom("room", { deck: updatedDeck })
+	}
+
 	// Keeping this player object constantly updated for ease of access
 	useEffect(() => {
 		setThisPlayer({...findPlayerById(players, id)})
@@ -383,6 +395,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, firebase }) => {
 				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id || phase !== "playing"}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
+        <button onClick={addFlip3}>Add Flip3</button>
+        <button onClick={addFreeze}>Add Freeze</button>
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
 					{selectList}
