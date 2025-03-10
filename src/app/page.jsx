@@ -109,7 +109,7 @@ const Home = ({ firebase }) => {
 
 	return (
 		<div>
-			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} shuffle={shuffle}/>
+			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} shuffle={shuffle} playerTemplate={playerTemplate}/>
 			<S.ButtonContainer>
 				{gameState.players.find((player) => player.id === id) ? null : (
 					<button onClick={addPlayer}>add player</button>
