@@ -48,6 +48,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		// flip3 should stop if they flip3, bust, or have 7 unique cards
 		// the three flipped card should be in the center
 		if (player.status.indexOf("flipping") >= 0 && !checkIfBust(player, drawnCard, updatedDiscardPile)) {
+		
 			// if player draws flip3 or freeze during their flip3, resolvespecial is true
 			if (player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")) {
 				// setResolveSpecial to false if the player has an unresolved special but ends up busting
@@ -88,13 +89,14 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 			if (player.status.indexOf("flipping") >= 0) {
 				player.status = "busted"
 				const nextPlayer = updatedPlayers.find(player => player.upNext)
-				nextPlayer.upNext = false
-
-				// If nextplayer and flipping player were the same person
-				if (nextPlayer.status === "busted") {
-					updatedWhoseTurn = nextTurnId(updatedPlayers, i)
-				} else {
-					updatedWhoseTurn = nextPlayer.id
+				if (nextPlayer) {
+					nextPlayer.upNext = false
+					// If nextplayer and flipping player were the same person
+					if (nextPlayer.status === "busted") {
+						updatedWhoseTurn = nextTurnId(updatedPlayers, i)
+					} else {
+						updatedWhoseTurn = nextPlayer.id
+					}
 				}
 			}
 			bustPlayer(player)
@@ -112,7 +114,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
 		// if theres a special to resolve, after drawing last flip3 card, resolve special
 		if (updatedResolveSpecial && !skipSpecial) {
-			console.log("RAN THISSS!")
 			updatedResolveSpecial = false
 			const specialCard = player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")
 			const specialPhase = handleSpecial(player, specialCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial, skipSpecial)
@@ -176,7 +177,11 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
 			// if an upNext player exists, their turn will be next, otherwise continue turn order normally
 			let upNextPlayer = updatedPlayers.find(player => player.upNext)
-			if (upNextPlayer) {
+
+			// for two unresolved specials in a row
+			const unresolvedPlayerIndex = players.findIndex(player => (player.status !== "busted" && player.status !== "stayed") && player.hand.some(card => card.effect === "flip3" || card.effect === "freeze"))
+
+			if (upNextPlayer && unresolvedPlayerIndex === -1) {
 				updatedWhoseTurn = upNextPlayer.id
 				upNextPlayer.upNext = false
 			} else {
@@ -247,7 +252,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
   const checkIfBust = (player, card, discarded) => {
 		const hand = player.hand
     for (let i = 0; i < hand.length - 1; i++) {
-      if (hand[i].value === card.value) {
+      if ((hand[i].value === card.value) && !card.effect) {
 				if (player.secondChance) {
 					player.secondChance = false
 					const secondChanceIndex = hand.findIndex(card => card.effect === "secondChance")
@@ -365,9 +370,25 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 	}, [players])
 
 	useEffect(() => {
-		const specialExists = players.find(player => player.hand.some(card => card.effect === "flip3" || card.effect === "freeze"))
-		if (specialExists && phase === "playing") {
-			console.log("will run this code")
+		// purpose is to catch any unresolved special cards and deal with them accordingly
+		const unresolvedPlayerIndex = players.findIndex(player => (player.status !== "busted" && player.status !== "stayed") && player.hand.some(card => card.effect === "flip3" || card.effect === "freeze"))
+		const flippingPlayer = players.find(player => player.status.indexOf("flipping") >= 0)
+		if (unresolvedPlayerIndex >= 0 && !flippingPlayer) {
+			const handleUnresolvedSpecial = async () => {
+				const updatedPlayers = [...players]
+				const updatedDeck = [...deck]
+				const updatedDiscardPile = [...discardPile]
+				const updatedResolveSpecial = resolveSpecial
+
+				const unresolvedPlayer = updatedPlayers[unresolvedPlayerIndex]
+				const specialCard = unresolvedPlayer.hand.find(card => card.effect === "flip3" || card.effect === "freeze")
+	
+				const specialPhase = handleSpecial(unresolvedPlayer, specialCard, updatedPlayers, unresolvedPlayerIndex, updatedDiscardPile, updatedResolveSpecial, false)
+				
+				console.log(updatedPlayers.find(player => player.upNext), "is next")
+				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, whoseTurn: unresolvedPlayer.id})
+			}
+			handleUnresolvedSpecial()
 		}
 	}, [whoseTurn])
 
@@ -418,8 +439,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
       <S.Container1>
         <button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
-        <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock</button>
-				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id || phase !== "playing"}>stay</button>
+        <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
+        <button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button>
+				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
         <button onClick={addFlip3}>Add Flip3</button>
