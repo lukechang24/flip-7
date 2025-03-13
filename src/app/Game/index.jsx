@@ -5,10 +5,9 @@ import S from "./style"
 import originalDeck from "../deck"
 
 const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase }) => {
-  const { findRoom, updateRoom } = firebase
+  const { updateRoom } = firebase
   const { deck, discardPile, phase, players, whoseTurn, round, resolveSpecial } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
-	// const [selectedPlayer, setSelectedPlayer] = useState("")
 
   const draw = async (i = null) => {
     let updatedDeck = [...deck]
@@ -62,9 +61,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 					skipSpecial = false
 				} else {
 					updatedStatus = "active"
-					const nextPlayer = updatedPlayers.find(player => player.upNext)
-					nextPlayer.upNext = false
-					updatedWhoseTurn = nextPlayer.id
+					const unresolvedPlayerIndex = players.findIndex(player => (player.status !== "busted" && player.status !== "stayed") && player.hand.some(card => card.effect === "flip3" || card.effect === "freeze"))
+					if (unresolvedPlayerIndex === -1) {
+						const nextPlayer = updatedPlayers.find(player => player.upNext)
+						nextPlayer.upNext = false
+						updatedWhoseTurn = nextPlayer.id
+					}
 				}
 			} else {
 				updatedStatus = `flipping${player.status.slice(-1) - 1}`
@@ -108,6 +110,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		const isWinner = checkIfWin(player)
 		if (isWinner) {
 			// End the round
+			addPointsToTotal(updatedPlayers)
 			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn, resolveSpecial: false })
 			return
 		}
@@ -190,6 +193,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 	
 			// If selected player is the selector themselves, end game
 			if (updatedPlayers[selectorIndex].status === "stayed" && updatedWhoseTurn === id) {
+				addPointsToTotal(updatedPlayers)
 				updatedPhase = "roundEnd"
 			} else {
 				// else continue playing
@@ -234,6 +238,14 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
     })
   }
 
+	const addPointsToTotal = async (players) => {
+		for (let i = 0; i < players.length; i++) {
+			const player = players[i]
+			player.totalPoints += player.points
+			player.points = 0
+		}
+	}
+
 	const checkIfWin = (player) => {
 		let totalNum = 0
 		player.hand.forEach(card => {
@@ -268,10 +280,10 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
 	const checkIfAllBust = async (players) => {
 		if (players.every(player => player.status === "busted" || player.status === "stayed") && players.length !== 0) {
-			const currIndex = players.findIndex((player) => player.id === id)
 			// let updatedWhoseTurn = nextTurnId(players, currIndex)
 			// await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
-			await updateRoom("room", { phase: "roundEnd" })
+			addPointsToTotal(players)
+			await updateRoom("room", { players, phase: "roundEnd" })
 			return true
 		}
 		return false
@@ -292,7 +304,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		for (let i = 0; i < updatedPlayers.length; i++) {
 			const player = updatedPlayers[i]
 			discardedCards.push(...player.hand)
-			player.totalPoints += player.points
+			// player.totalPoints += player.points
 			player.points = 0
 			player.hand = []
 			player.status = "active"
@@ -302,6 +314,16 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		const updatedWhoseTurn = nextTurnId(updatedPlayers, currIndex)
 		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", whoseTurn: updatedWhoseTurn, round: round + 1 })
   }
+
+	const checkEndGame = () => {
+		const updatedPlayers = [...players]
+		const isWinCondition = updatedPlayers.some(player => player.totalPoints >= 200)
+		if (isWinCondition) {
+			const winner = updatedPlayers.sort((a, b) => b.totalPoints - a.totalPoints)[0]
+			console.log(winner)
+			// FINISH WINNER LOGIC
+		}
+	}
 
 	//implement to make setting whoseturn less chunky
 	const nextTurnId = (players, index) => {
@@ -374,6 +396,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		const unresolvedPlayerIndex = players.findIndex(player => (player.status !== "busted" && player.status !== "stayed") && player.hand.some(card => card.effect === "flip3" || card.effect === "freeze"))
 		const flippingPlayer = players.find(player => player.status.indexOf("flipping") >= 0)
 		if (unresolvedPlayerIndex >= 0 && !flippingPlayer) {
+			// find who still has a special in their hand and play it sequentially
 			const handleUnresolvedSpecial = async () => {
 				const updatedPlayers = [...players]
 				const updatedDeck = [...deck]
@@ -391,6 +414,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 			handleUnresolvedSpecial()
 		}
 	}, [whoseTurn])
+
+	useEffect(() => {
+		if (phase === "roundEnd") {
+			checkEndGame()
+		}
+	}, [phase])
 
   const playerList = players ? rotateIds(id, players).map((player, i) => {
 		const regularHandList = player.hand.map((hand, j, arr2) => {
@@ -448,6 +477,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
         <button onClick={addFreeze}>Add Freeze</button>
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
+					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to" : "Give this flip3 card to"}</S.SpecialTitle>
 					{selectList}
 				</S.SelectContainer>
       </S.Container1>
