@@ -219,6 +219,14 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		checkIfAllBust(updatedPlayers)
 		await updateRoom("room", { players: updatedPlayers, whoseTurn: updatedWhoseTurn })
 	}
+
+	const bustPlayer = async (player) => {
+		player.status = "busted"
+		player.points = 0
+		player.isSelecting = false
+		player.secondChance = false
+		player.upNext = false
+	}
 	
   const calculatePoints = (arr) => {
     arr.forEach((player, i) => {
@@ -289,14 +297,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		return false
 	}
 
-	const bustPlayer = async (player) => {
-		player.status = "busted"
-		player.points = 0
-		player.isSelecting = false
-		player.secondChance = false
-		player.upNext = false
-	}
-
   const startNextRound = async () => {
 		const updatedPlayers = [...players]
 		const currIndex = updatedPlayers.findIndex(player => player.id === whoseTurn)
@@ -304,7 +304,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		for (let i = 0; i < updatedPlayers.length; i++) {
 			const player = updatedPlayers[i]
 			discardedCards.push(...player.hand)
-			// player.totalPoints += player.points
 			player.points = 0
 			player.hand = []
 			player.status = "active"
@@ -473,8 +472,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
-        <button onClick={addFlip3}>Add Flip3</button>
-        <button onClick={addFreeze}>Add Freeze</button>
+        {/* <button onClick={addFlip3}>Add Flip3</button>
+        <button onClick={addFreeze}>Add Freeze</button> */}
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
 					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to" : "Give this flip3 card to"}</S.SpecialTitle>
