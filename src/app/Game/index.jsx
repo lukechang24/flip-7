@@ -40,14 +40,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
 			}
 		}
-		// if their status is "flipping3"
-		// FIX IF PLAYER DRAWS FLIP 3 OR FREEZE DURING FLIP 3
-		// WHO IS UPNEXT if SELECTOR CHOOSES SOMEONE RIGHT AFTER HIM
-		// HANDLE CHAIN FLIP 3
-		// flip3 should stop if they flip3, bust, or have 7 unique cards
+		// FIX DOUBLE CHECKING CHECKIFBUST
 		// the three flipped card should be in the center
 		if (player.status.indexOf("flipping") >= 0 && !checkIfBust(player, drawnCard, updatedDiscardPile)) {
-		
 			// if player draws flip3 or freeze during their flip3, resolvespecial is true
 			if (player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")) {
 				// setResolveSpecial to false if the player has an unresolved special but ends up busting
@@ -89,6 +84,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		else if (!drawnCard.effect && checkIfBust(player, drawnCard, updatedDiscardPile)) {
 			// If busted player is admist flipping, stop flipping phase and move to next person
 			if (player.status.indexOf("flipping") >= 0) {
+				console.log("THEY BUSTED!!")
 				player.status = "busted"
 				const nextPlayer = updatedPlayers.find(player => player.upNext)
 				if (nextPlayer) {
@@ -270,6 +266,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 	}
 
   const checkIfBust = (player, card, discarded) => {
+		console.log("RUNNING BUST")
 		const hand = player.hand
     for (let i = 0; i < hand.length - 1; i++) {
       if ((hand[i].value === card.value) && !card.effect) {
@@ -472,8 +469,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
-        {/* <button onClick={addFlip3}>Add Flip3</button>
-        <button onClick={addFreeze}>Add Freeze</button> */}
+        <button onClick={addFlip3}>Add Flip3</button>
+        <button onClick={addFreeze}>Add Freeze</button>
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
 					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to" : "Give this flip3 card to"}</S.SpecialTitle>

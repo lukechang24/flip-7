@@ -34,36 +34,28 @@ const Home = ({ firebase }) => {
 	}
 
 	const [gameState, setGameState] = useState(gameTemplate)
-	const [id, setId] = useState(null);
-	
-	const generateRandomId = () => {
-		let randomId = Math.random().toString(36).substring(2, 15) +
-			  Math.random().toString(36).substring(2, 15);
-		return randomId;
-	};
+	const [id, setId] = useState(null)
+	const [showForm, setShowForm] = useState(false)
+	const [name, setName] = useState("")
 
-	const checkIfExists = (id, arr) => {
-		for (let i = 0; i < arr.length; i++) {
-			if (arr[i].id === id) {
-				return true;
-			}
-		}
-		return false;
-	};
+	const handleInput = (e) => {
+		setName(e.target.value)
+	}
 
 	const addPlayer = async () => {
-		const roomData = await findRoom("room");
-		if (checkIfExists(id, roomData.players)) return;
-
+		if (!name) return
+		const roomData = await findRoom("room")
+		if (checkIfExists(id, roomData.players)) return
+		setShowForm(false)
 		const newPlayer = {
 			...playerTemplate,
 			id,
-			name: `player${roomData.players.length + 1}`
-		};
+			name: name
+		}
 
 		await updateRoom("room", {
 			players: [...roomData.players, newPlayer],
-		});
+		})
 	}
 
 	const startGame = async () => {
@@ -89,6 +81,20 @@ const Home = ({ firebase }) => {
 		await updateRoom("room", { players: [...gameState.players, ...dummies] })
 	}
 
+	const generateRandomId = () => {
+		let randomId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+		return randomId
+	}
+
+	const checkIfExists = (id, arr) => {
+		for (let i = 0; i < arr.length; i++) {
+			if (arr[i].id === id) {
+				return true
+			}
+		}
+		return false
+	}
+
 	useEffect(() => {
 		const id = window.localStorage.getItem("id")
 			? window.localStorage.getItem("id")
@@ -105,19 +111,24 @@ const Home = ({ firebase }) => {
 			}
 		});
 		return () => unsubscribe();
-	}, []);
+	}, [])
 
 	return (
 		<div>
 			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} shuffle={shuffle} playerTemplate={playerTemplate}/>
 			<S.ButtonContainer>
 				{gameState.players.find((player) => player.id === id) ? null : (
-					<button onClick={addPlayer}>Join Game</button>
+					<button onClick={() => setShowForm(true)}>join game</button>
 				)}
 				<button onClick={startGame}>start game</button>
 				<button onClick={resetGame}>reset lobby</button>
 				<button onClick={populateGame}>populate game</button>
 			</S.ButtonContainer>
+			<S.AddForm show={showForm}>
+				<S.FormTitle>Player name: </S.FormTitle>
+				<S.NameInput onChange={handleInput}></S.NameInput>
+				<S.AddButton onClick={addPlayer}>Join Game</S.AddButton>
+			</S.AddForm>
 		</div>
 	);
 };
