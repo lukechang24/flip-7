@@ -9,7 +9,7 @@ import deck from "./deck";
 const Home = ({ firebase }) => {
 	const { findRoom, updateRoom, listenToRoom } = firebase
 
-	const shuffle = () => deck.sort(() => Math.random() - 0.5);
+	const shuffle = (cards) => cards.sort(() => Math.random() - 0.5);
 	const gameTemplate = {
 		deck: [...shuffle(deck)],
 		discardPile: [],

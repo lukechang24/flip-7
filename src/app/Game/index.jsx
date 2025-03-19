@@ -42,7 +42,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		}
 		// FIX DOUBLE CHECKING CHECKIFBUST
 		// the three flipped card should be in the center
-		if (player.status.indexOf("flipping") >= 0 && !checkIfBust(player, drawnCard, updatedDiscardPile)) {
+		if (player.status.indexOf("flipping") >= 0 && !checkIfBust(player, drawnCard, updatedDiscardPile, true)) {
 			// if player draws flip3 or freeze during their flip3, resolvespecial is true
 			if (player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")) {
 				// setResolveSpecial to false if the player has an unresolved special but ends up busting
@@ -84,7 +84,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		else if (!drawnCard.effect && checkIfBust(player, drawnCard, updatedDiscardPile)) {
 			// If busted player is admist flipping, stop flipping phase and move to next person
 			if (player.status.indexOf("flipping") >= 0) {
-				console.log("THEY BUSTED!!")
 				player.status = "busted"
 				const nextPlayer = updatedPlayers.find(player => player.upNext)
 				if (nextPlayer) {
@@ -265,16 +264,21 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		return false
 	}
 
-  const checkIfBust = (player, card, discarded) => {
-		console.log("RUNNING BUST")
+  const checkIfBust = (player, card, discarded, skip = false) => {
 		const hand = player.hand
     for (let i = 0; i < hand.length - 1; i++) {
       if ((hand[i].value === card.value) && !card.effect) {
 				if (player.secondChance) {
 					player.secondChance = false
-					const secondChanceIndex = hand.findIndex(card => card.effect === "secondChance")
-					discarded.push(...hand.splice(secondChanceIndex, 1))
-					discarded.push(player.hand.pop())
+					
+					// just because we checkifbust twice
+					if (skip) {
+						player.secondChance = true
+					} else {
+						const secondChanceIndex = hand.findIndex(card => card.effect === "secondChance")
+						discarded.push(...hand.splice(secondChanceIndex, 1))
+						discarded.push(player.hand.pop())
+					}
 					return false
 				}
         return true
@@ -404,7 +408,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 	
 				const specialPhase = handleSpecial(unresolvedPlayer, specialCard, updatedPlayers, unresolvedPlayerIndex, updatedDiscardPile, updatedResolveSpecial, false)
 				
-				console.log(updatedPlayers.find(player => player.upNext), "is next")
 				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, whoseTurn: unresolvedPlayer.id})
 			}
 			handleUnresolvedSpecial()
