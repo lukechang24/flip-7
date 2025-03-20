@@ -121,7 +121,12 @@ const Home = ({ firebase }) => {
 					<button onClick={() => setShowForm(true)}>join game</button>
 				)}
 				<button onClick={startGame}>start game</button>
-				<button onClick={resetGame}>reset lobby</button>
+				{
+					gameState.players[0] ?
+						<button onClick={resetGame} disabled={gameState.players[0].id !== id}>reset lobby</button>
+					:
+					 	null
+				}
 				<button onClick={populateGame}>populate game</button>
 			</S.ButtonContainer>
 			<S.AddForm show={showForm}>

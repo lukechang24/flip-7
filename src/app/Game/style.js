@@ -30,10 +30,10 @@ S.PlayerContainer = styled.div`
 	width: var(--box-width);
 	height: var(--box-height);
 	display: flex;
-	// flex-direction: ${props => props.position === "bottom" ? "column-reverse" : "column"};
 	flex-direction: column;
-	background-color: ${props => props.busted ? "grey" : props.stayed ? "#1976D2" : "lightblue"};
 	border: 5px solid white;
+	background-color: ${props => props.busted ? "grey" : props.stayed ? "#1976D2" : "lightblue"};
+	box-sizing: border-box;
 	&.highlight {
 		border: 5px solid greenyellow;
 	}
@@ -51,10 +51,17 @@ S.HandContainer = styled.div`
 `
 
 S.Card = styled.div`
-  margin: 0 2.5px;
+	width: 30px;
+	height: 45px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	border: ${props => props.duplicate ? "1px solid red" : "1px solid black"};
+  margin: 2.5px;
+	text-align: center;
+
   transition: opacity 1s ease-in;
   animation: ${props => props.animate ? "fadeIn 0.3s forwards" : "none"};
-	border: ${props => props.duplicate ? "1px solid red" : "1px solid transparent"};
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -75,12 +82,14 @@ S.Points = styled.p`
 	position: absolute;
 	bottom: 0;
 	left: 0;
+	margin-left: 5px;
 `
 
 S.TotalPoints = styled.p`
 	position: absolute;
 	bottom: 0;
 	right: 0;
+	margin-right: 5px;
 `
 
 S.SelectContainer = styled.div`

@@ -428,7 +428,14 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
     })
 		const specialHandList = player.hand.map((hand, j, arr2) => {
 			const animate = j === arr2.length - 1;
-			if (hand.effect) return <S.Card key={j} animate={animate}>{hand.effect}</S.Card>
+			if (hand.effect) {
+				if (hand.effect.indexOf("plus") !== -1) {
+					hand.effect = "+" + hand.effect.substring(4)
+				} else if (hand.effect === "flip3") {
+					hand.effect = "FLIP 3"
+				}
+				return <S.Card key={j} animate={animate}>{hand.effect}</S.Card>
+			}
 		})
     return (
       <S.PlayerContainer className={player.id === whoseTurn && phase !== "roundEnd" ? "highlight" : ""} position={i === 0 ? "bottom-left" : i === 1 ? "bottom-right" : i === 2 ? "right-center" : i === 3 ? "top-right" : i === 4 ? "top-left" : "left-center" } busted={player.status === "busted"} stayed={player.status === "stayed"}>
