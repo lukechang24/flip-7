@@ -22,8 +22,8 @@ S.PlayerContainer = styled.div`
 		props.position === "left-center" || props.position === "right-center" ? "calc((100vh - var(--box-height)) / 2)" :
 		"0"};
 	left: ${props =>
-		props.position === "top-left" || props.position === "bottom-left" ? "calc(25vw)" :
-		props.position === "top-right" || props.position === "bottom-right" ? "calc(100vw - 25vw - var(--box-width))" :
+		props.position === "top-left" || props.position === "bottom-left" ? "calc(22vw)" :
+		props.position === "top-right" || props.position === "bottom-right" ? "calc(100vw - 22vw - var(--box-width))" :
 		props.position === "left-center" ? "0" :
 		props.position === "right-center" ? "calc(100vw - var(--box-width))" :
 		"0"};
@@ -51,11 +51,12 @@ S.HandContainer = styled.div`
 `
 
 S.Card = styled.div`
-	width: 30px;
-	height: 45px;
+	width: 35px;
+	height: 50px;
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	font-size: ${props => props.smaller ? "12px" : "16px"};
 	border: ${props => props.duplicate ? "1px solid red" : "1px solid black"};
   margin: 2.5px;
 	text-align: center;
@@ -73,9 +74,25 @@ S.DiscardPile = styled.div`
 `
 
 S.DiscardCard = styled.div`
-		position: absolute;
-		left: ${props => props.shift ? `${props.shift * 10}px` : "0"};
-		top: ${props => props.shift ? `${props.shift * 10}px` : "0"};
+	position: absolute;
+	left: ${props => props.shift ? `${props.shift * 10}px` : "0"};
+	top: ${props => props.shift ? `${props.shift * 10}px` : "0"};
+	width: 35px;
+	height: 50px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: ${props => props.smaller ? "12px" : "16px"};
+	border: ${props => props.duplicate ? "1px solid red" : "1px solid black"};
+  margin: 2.5px;
+	text-align: center;
+
+  transition: opacity 1s ease-in;
+  animation: ${props => props.animate ? "fadeIn 0.3s forwards" : "none"};
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 `
 
 S.Points = styled.p`
@@ -92,11 +109,20 @@ S.TotalPoints = styled.p`
 	margin-right: 5px;
 `
 
+S.Banner = styled.div`
+	position: absolute;
+	bottom: 30px;
+	width: 100%;
+	background-color: #333333;
+	color: white;
+	text-align: center;
+`
+
 S.SelectContainer = styled.div`
 	position: absolute;
 	top: calc((100vh / 2));
 	left: calc((100vw / 2) - 75px);
-	width: 150px;
+	width: 175px;
 	display: ${props => props.show ? "flex" : "none"};
 	flex-direction: column;
 	background-color: grey;

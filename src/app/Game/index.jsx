@@ -317,11 +317,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
 	const checkEndGame = () => {
 		const updatedPlayers = [...players]
+		const sortedPlayers = [...players].sort((a, b) => b.totalPoints - a.totalPoints)
 		const isWinCondition = updatedPlayers.some(player => player.totalPoints >= 200)
 		if (isWinCondition) {
-			const winner = updatedPlayers.sort((a, b) => b.totalPoints - a.totalPoints)[0]
-			console.log(winner)
-			// FINISH WINNER LOGIC
+			const winner = sortedPlayers[0]
+			const winnerIndex = updatedPlayers.findIndex(player => player.id === winner.id)
+			updatedPlayers[winnerIndex].status = "won"
+			updateRoom("room", { players: updatedPlayers })
 		}
 	}
 
@@ -429,12 +431,17 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 		const specialHandList = player.hand.map((hand, j, arr2) => {
 			const animate = j === arr2.length - 1;
 			if (hand.effect) {
-				if (hand.effect.indexOf("plus") !== -1) {
-					hand.effect = "+" + hand.effect.substring(4)
-				} else if (hand.effect === "flip3") {
-					hand.effect = "FLIP 3"
+				let modEffect = hand.effect
+				let smaller = true
+				if (modEffect.indexOf("plus") !== -1) {
+					smaller = false
+					modEffect = "+" + modEffect.substring(4)
+				} else if (modEffect === "flip3") {
+					modEffect = "flip-3"
+				} else if (modEffect === "secondChance") {
+					modEffect = "revive"
 				}
-				return <S.Card key={j} animate={animate}>{hand.effect}</S.Card>
+				return <S.Card key={j} animate={animate} smaller={smaller}>{modEffect}</S.Card>
 			}
 		})
     return (
@@ -445,10 +452,23 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
         <S.Name>{player.name}</S.Name>
 				<S.TotalPoints>{player.totalPoints}</S.TotalPoints>
 				{
-					player.upNext ?
-						<p>I'm UP NEXT</p>
-					:
-						null
+					player.isSelecting
+						?
+							<S.Banner>selecting player...</S.Banner>
+						:
+					player.status.indexOf("flipping") !== -1
+						?
+							<S.Banner>remaining cards to flip: {player.status[player.status.length - 1]}</S.Banner>
+						:
+					player.upNext && whoseTurn !== player.id
+						?
+							<S.Banner>this player's turn next</S.Banner>
+						:
+					player.status === "flip7"
+						?
+							<S.Banner>flipped 7!</S.Banner>
+						:
+							null
 				}
       </S.PlayerContainer>
     )
@@ -457,7 +477,19 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 	// when cards run out and discard pile gets merged with deck, leave the last element of discard in the pile still
 	const discardList = discardPile ? discardPile.map((card, i, arr) => {
 		if (i > arr.length - 6) {
-			return <S.DiscardCard shift={i - (arr.length - 5)}>{card.effect || card.value}</S.DiscardCard>
+			let modEffect = card.effect
+			let smaller = true
+			if (card.effect) {
+				if (modEffect.indexOf("plus") !== -1) {
+					smaller = false
+					modEffect = "+" + modEffect.substring(4)
+				} else if (modEffect === "flip3") {
+					modEffect = "flip-3"
+				} else if (modEffect === "secondChance") {
+					modEffect = "revive"
+				}
+			}
+			return <S.DiscardCard shift={i - (arr.length - 5)} smaller={smaller}>{modEffect || card.value}</S.DiscardCard>
 		}
 	}) : null
 
@@ -483,7 +515,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
         <button onClick={addFreeze}>Add Freeze</button>
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
-					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to" : "Give this flip3 card to"}</S.SpecialTitle>
+					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to: " : "Give this flip-3 card to: "}</S.SpecialTitle>
 					{selectList}
 				</S.SelectContainer>
       </S.Container1>

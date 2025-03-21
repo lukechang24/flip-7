@@ -1,9 +1,10 @@
 :root {
-    --box-width: 250px;
-    --box-height: 250px;
+    --box-width: 290px;
+    --box-height: 175px;
   }
 
 * {
 	margin: 0;
 	padding: 0;
+	box-sizing: border-box;
 }
