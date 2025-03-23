@@ -506,13 +506,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 
       <S.Container1>
         <button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
-        <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
-        <button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button>
+        {/* <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
+        <button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
 				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
         {playerList}
         <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
-        <button onClick={addFlip3}>Add Flip3</button>
-        <button onClick={addFreeze}>Add Freeze</button>
+        {/* <button onClick={addFlip3}>Add Flip3</button>
+        <button onClick={addFreeze}>Add Freeze</button> */}
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
 					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to: " : "Give this flip-3 card to: "}</S.SpecialTitle>
