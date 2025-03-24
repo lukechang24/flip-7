@@ -44,8 +44,8 @@ const Home = ({ firebase }) => {
 
 	const addPlayer = async () => {
 		if (!name) return
-		const roomData = await findRoom("room")
-		if (checkIfExists(id, roomData.players)) return
+		if (gameState.players.find(player => player.name === name)) return false
+		if (checkIfExists(id, gameState.players)) return
 		setShowForm(false)
 		const newPlayer = {
 			...playerTemplate,
@@ -54,7 +54,7 @@ const Home = ({ firebase }) => {
 		}
 
 		await updateRoom("room", {
-			players: [...roomData.players, newPlayer],
+			players: [...gameState.players, newPlayer],
 		})
 	}
 
@@ -95,6 +95,8 @@ const Home = ({ firebase }) => {
 		return false
 	}
 
+	const isHost = () => gameState.players[0] ? gameState.players[0].id == id : false
+
 	useEffect(() => {
 		const id = window.localStorage.getItem("id")
 			? window.localStorage.getItem("id")
@@ -115,19 +117,30 @@ const Home = ({ firebase }) => {
 
 	return (
 		<div>
-			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} shuffle={shuffle} playerTemplate={playerTemplate}/>
+			<Game gameState={gameState} id={id} checkIfExists={checkIfExists} shuffle={shuffle} isHost={isHost} playerTemplate={playerTemplate}/>
 			<S.ButtonContainer>
-				{gameState.players.find((player) => player.id === id) ? null : (
-					<button onClick={() => setShowForm(true)}>join game</button>
-				)}
-				<button onClick={startGame}>start game</button>
-				{
-					gameState.players[0] ?
-						<button onClick={resetGame} disabled={gameState.players[0].id !== id}>reset lobby</button>
-					:
-					 	null
+				{gameState.players.find((player) => player.id === id) 
+					? 
+						null 
+					: 
+						<button onClick={() => setShowForm(true)}>join game</button>
 				}
-				<button onClick={populateGame}>populate game</button>
+				{isHost()
+					?	
+						<>
+							<button onClick={startGame}>start game</button>
+							{gameState.players[0] 
+								?
+									<button onClick={resetGame}>reset lobby</button>
+								:
+					 				null
+							}
+							<button onClick={populateGame}>populate game</button>
+						</>
+					:
+						null
+
+				}
 			</S.ButtonContainer>
 			<S.AddForm show={showForm}>
 				<S.FormTitle>Player name: </S.FormTitle>

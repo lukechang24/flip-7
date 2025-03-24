@@ -4,7 +4,7 @@ import { withFirebase } from "../../Firebase"
 import S from "./style"
 import originalDeck from "../deck"
 
-const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase }) => {
+const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, firebase }) => {
   const { updateRoom } = firebase
   const { deck, discardPile, phase, players, whoseTurn, round, resolveSpecial } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
@@ -511,7 +511,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
         <button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
 				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
         {playerList}
-        <button onClick={startNextRound} disabled={phase !== "roundEnd" || !round}>next round</button>
+				{isHost() && phase === "roundEnd"
+					?
+						<button onClick={startNextRound}>next round</button>
+					:
+						null
+				}
         {/* <button onClick={addFlip3}>Add Flip3</button>
         <button onClick={addFreeze}>Add Freeze</button> */}
 				<S.DiscardPile>{discardList}</S.DiscardPile>
