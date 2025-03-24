@@ -310,6 +310,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 			player.status = "active"
 			player.secondChance = false
 			player.remainingDraws = 0
+			player.upNext = false
 		}
 		const updatedWhoseTurn = nextTurnId(updatedPlayers, currIndex)
 		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", whoseTurn: updatedWhoseTurn, round: round + 1 })
