@@ -48,14 +48,14 @@ const Game = ({ gameState, id, checkIfExists, shuffle, playerTemplate, firebase 
 				// setResolveSpecial to false if the player has an unresolved special but ends up busting
 				updatedResolveSpecial = checkIfBust(player, drawnCard, updatedDiscardPile) ? false : true
 			}
-			let updatedStatus = ""
+			let updatedStatus = "active"
 
 			if (player.status.slice(-1) === "1") {
 				// else continue to upNext player
 				if (updatedResolveSpecial) {
 					skipSpecial = false
 				} else {
-					updatedStatus = "active"
+					updatedStatus = "active" //might not need this
 					const unresolvedPlayerIndex = players.findIndex(player => (player.status !== "busted" && player.status !== "stayed") && player.hand.some(card => card.effect === "flip3" || card.effect === "freeze"))
 					if (unresolvedPlayerIndex === -1) {
 						const nextPlayer = updatedPlayers.find(player => player.upNext)
