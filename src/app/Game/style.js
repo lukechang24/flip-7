@@ -138,4 +138,47 @@ S.SelectName = styled.button`
 	margin: 5px 0;
 `
 
+S.Container2 = styled.div`
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	display: flex;
+	flex-direction: column;
+`
+
+S.GameLog = styled.div`
+  width: 350px;
+  height: 200px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 14px;
+  border-radius: 12px;
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+`;
+
+S.Message = styled.div`
+  margin-bottom: 5px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  line-height: 1.4;
+`;
+
 export default S

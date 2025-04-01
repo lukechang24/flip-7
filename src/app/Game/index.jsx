@@ -6,7 +6,7 @@ import originalDeck from "../deck"
 
 const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, firebase }) => {
   const { updateRoom } = firebase
-  const { deck, discardPile, phase, players, whoseTurn, round, resolveSpecial } = gameState
+  const { deck, discardPile, phase, players, whoseTurn, round, resolveSpecial, gameLog } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
 
   const draw = async (i = null) => {
@@ -15,6 +15,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
     let updatedPlayers = [...players]
     let updatedWhoseTurn = ""
 		let updatedResolveSpecial = resolveSpecial
+		let updatedGameLog = [...gameLog]
+		let message = ""
 
 		let skipSpecial = true
 
@@ -33,6 +35,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
+		message += `${player.name} drew a ${formatMessage(drawnCard)}.`
+
 		// just to make it so player3 Cant draw any effect
 		if (i === 2 ) {
 			if (drawnCard.effect) {
@@ -41,7 +45,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 			}
 		}
 		// FIX DOUBLE CHECKING CHECKIFBUST
-		// the three flipped card should be in the center
 		if (player.status.indexOf("flipping") >= 0 && !checkIfBust(player, drawnCard, updatedDiscardPile, true)) {
 			// if player draws flip3 or freeze during their flip3, resolvespecial is true
 			if (player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")) {
@@ -76,7 +79,8 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 			let specialPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial)
 			//if phase is changed to selecting, player is selecting a person to play an effect card so stop code here
 			if (specialPhase) {
-				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase })
+				updatedGameLog.push(message)
+				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, gameLog: updatedGameLog })
 				return
 			}
 		}
@@ -97,6 +101,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 				}
 			}
 			bustPlayer(player)
+			message += ".. and busted :("
 		}
 
 		calculatePoints(updatedPlayers)
@@ -106,7 +111,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		if (isWinner) {
 			// End the round
 			addPointsToTotal(updatedPlayers)
-			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn, resolveSpecial: false })
+			message += ".. and managed to flip 7 point cards! +15 points"
+			updatedGameLog.push(message)
+			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn, resolveSpecial: false, gameLog: updatedGameLog })
 			return
 		}
 
@@ -115,11 +122,11 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 			updatedResolveSpecial = false
 			const specialCard = player.hand.find(card => card.effect === "flip3" || card.effect === "freeze")
 			const specialPhase = handleSpecial(player, specialCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial, skipSpecial)
-			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, resolveSpecial: updatedResolveSpecial })
+			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, resolveSpecial: updatedResolveSpecial, gameLog: updatedGameLog })
 			return
 		}
-
-    await updateRoom("room", { deck: updatedDeck, discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, resolveSpecial: updatedResolveSpecial })
+		updatedGameLog.push(message)
+    await updateRoom("room", { deck: updatedDeck, discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, resolveSpecial: updatedResolveSpecial, gameLog: updatedGameLog })
 		checkIfAllBust(updatedPlayers)
   }
 
@@ -355,6 +362,25 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
     return newIndex  
 	}
 
+	const formatMessage = (card) => {
+		if (card.effect) {
+			switch(card.effect) {
+				case "flip3":
+					return "Flip-3"
+				case "freeze":
+					return "Freeze"
+				case "secondChance":
+					return "Revive"
+				default:
+					return `point modifier (${card.effect.substring(4)})`
+			}
+		} else if (card.value === 0) {
+			return "0"
+		} else {
+			return card.value
+		}
+	}
+
 	//Makes everyone see themselves as the first player on the bottom
   const rotateIds = (id, arr) => {
     if (!id || !arr[0]) return []
@@ -437,6 +463,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 				if (modEffect.indexOf("plus") !== -1) {
 					smaller = false
 					modEffect = "+" + modEffect.substring(4)
+				} else if (modEffect.indexOf("times") !== -1) {
+					smaller = false
+					modEffect = "x" + modEffect.substring(5)
 				} else if (modEffect === "flip3") {
 					modEffect = "flip-3"
 				} else if (modEffect === "secondChance") {
@@ -490,13 +519,17 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 					modEffect = "revive"
 				}
 			}
-			return <S.DiscardCard shift={i - (arr.length - 5)} smaller={smaller}>{modEffect || card.value}</S.DiscardCard>
+			return <S.DiscardCard key={i} shift={i - (arr.length - 5)} smaller={smaller}>{modEffect || card.value}</S.DiscardCard>
 		}
 	}) : null
 
-	const selectList = players ? players.map(player => {
+	const selectList = players ? players.map((player, i) => {
 		// make sure players who busted or stayed don't show up in the list
-		if (player.status !== "busted" && player.status !== "stayed" ) return <S.SelectName onClick={() => handleSelect(player.id)}>{player.name}</S.SelectName>
+		if (player.status !== "busted" && player.status !== "stayed" ) return <S.SelectName key={i} onClick={() => handleSelect(player.id)}>{player.name}</S.SelectName>
+	}) : null
+
+	const messageList = gameLog ? gameLog.map((message, i) => {
+		return <p>{message}</p>
 	}) : null
 
   return (
@@ -506,19 +539,22 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
       :
 
       <S.Container1>
-        <button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
-        {/* <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
-        <button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
-				<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
-        {playerList}
-				{isHost() && phase === "roundEnd"
-					?
-						<button onClick={startNextRound}>next round</button>
-					:
-						null
-				}
-        {/* <button onClick={addFlip3}>Add Flip3</button>
-        <button onClick={addFreeze}>Add Freeze</button> */}
+				{playerList}
+				<S.Container2>
+					<S.GameLog>{messageList}</S.GameLog>
+					<button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
+					{/* <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
+					<button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
+					<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
+					{isHost() && phase === "roundEnd"
+						?
+							<button onClick={startNextRound}>next round</button>
+						:
+							null
+					}
+					{/* <button onClick={addFlip3}>Add Flip3</button>
+					<button onClick={addFreeze}>Add Freeze</button> */}
+				</S.Container2>
 				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
 					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to: " : "Give this flip-3 card to: "}</S.SpecialTitle>

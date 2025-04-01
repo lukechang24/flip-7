@@ -18,7 +18,8 @@ const Home = ({ firebase }) => {
 		whoseTurn: "",
 		// isAllBust: false,
 		round: 0,
-		resolveSpecial: false
+		resolveSpecial: false,
+		gameLog: []
 	}
 
 	const playerTemplate = {
@@ -64,7 +65,7 @@ const Home = ({ firebase }) => {
 	}
 
 	const resetGame = async () => {
-		await updateRoom("room", gameTemplate);
+		await updateRoom("room", gameTemplate)
 	};
 
 	const populateGame = async () => {
