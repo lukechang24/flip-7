@@ -80,7 +80,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 			let specialPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial)
 			//if phase is changed to selecting, player is selecting a person to play an effect card so stop code here
 			if (specialPhase) {
-				message += " and is selecting a player."
+				message += " and is selecting a player"
 				updatedGameLog.push(message)
 				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, gameLog: updatedGameLog })
 				return
@@ -103,7 +103,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 				}
 			}
 			bustPlayer(player)
-			message += " and busted :("
+			message += " and busted"
 		}
 
 		calculatePoints(updatedPlayers)
@@ -129,7 +129,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		}
 		updatedGameLog.push(message)
     await updateRoom("room", { deck: updatedDeck, discardPile: updatedDiscardPile, players: updatedPlayers, whoseTurn: updatedWhoseTurn, resolveSpecial: updatedResolveSpecial, gameLog: updatedGameLog })
-		checkIfAllBust(updatedPlayers)
+		checkIfAllBust(updatedPlayers, updatedGameLog)
   }
 
 
@@ -221,10 +221,10 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		updatedPlayers[i].status = "stayed"
 		let updatedWhoseTurn =  nextTurnId(updatedPlayers, i)
 		//implement if last person decides to stay and end the round
-		checkIfAllBust(updatedPlayers)
-
+		
 		updatedGameLog.push(`${updatedPlayers[i].name} has decided to stay for this round`)
 		await updateRoom("room", { players: updatedPlayers, whoseTurn: updatedWhoseTurn, gameLog: updatedGameLog })
+		checkIfAllBust(updatedPlayers, updatedGameLog)
 	}
 
 	const bustPlayer = async (player) => {
@@ -299,15 +299,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
     return false
   }
 
-	const checkIfAllBust = async (players) => {
-		const updatedGameLog = [...gameLog]
-
+	const checkIfAllBust = async (players, gameLog = []) => {
 		if (players.every(player => player.status === "busted" || player.status === "stayed") && players.length !== 0) {
 			// let updatedWhoseTurn = nextTurnId(players, currIndex)
 			// await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
 			addPointsToTotal(players)
-			updatedGameLog.push("Everyone has busted or stayed")
-			await updateRoom("room", { players, phase: "roundEnd", gameLog: updatedGameLog })
+			gameLog.push(`Everyone has busted or stayed. End of round ${round}`)
+			await updateRoom("room", { players, phase: "roundEnd", gameLog })
 			return true
 		}
 		return false
@@ -330,7 +328,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		}
 		const updatedWhoseTurn = nextTurnId(updatedPlayers, currIndex)
 
-		updatedGameLog.push(`Starting round ${round + 1}`)
+		updatedGameLog.push(`Round ${round + 1}`)
 		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", whoseTurn: updatedWhoseTurn, round: round + 1, gameLog: updatedGameLog })
   }
 
@@ -550,16 +548,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 				{playerList}
 				<S.Container2>
 					<S.GameLog ref={gameLogRef}>{messageList}</S.GameLog>
-					<button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
-					{/* <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
-					<button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
-					<button onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</button>
-					{isHost() && phase === "roundEnd"
-						?
-							<button onClick={startNextRound}>next round</button>
-						:
-							null
-					}
+					<S.Container3>
+						<S.Action onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</S.Action>
+						{/* <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
+						<button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
+						<S.Action onClick={stay} disabled={thisPlayer.points <= 0 || whoseTurn !== id ||thisPlayer.status !== "active" || phase !== "playing"}>stay</S.Action>
+					</S.Container3>
+					<S.NextRound onClick={startNextRound} show={phase === "roundEnd"} disabled={!isHost()}>next round</S.NextRound>
 					{/* <button onClick={addFlip3}>Add Flip3</button>
 					<button onClick={addFreeze}>Add Freeze</button> */}
 				</S.Container2>

@@ -139,6 +139,7 @@ S.Container2 = styled.div`
 	transform: translate(-50%, -50%);
 	display: flex;
 	flex-direction: column;
+	align-items: center;
 `
 
 S.GameLog = styled.div`
@@ -181,6 +182,51 @@ S.Message = styled.div`
 S.Bold = styled.span`
 	color: #ffd700;
 	font-weight: bolder;
+`
+
+S.Container3 = styled.div`
+	width: 100%;
+	display: flex;
+	justify-content: space-around;
+`
+
+S.Action = styled.button`
+	width: 100px;
+	padding: 10px;
+	border: none;
+  border-radius: 8px;
+	margin-top: 20px;
+	transition: background-color 0.3s, transform 0.1s;
+  text-transform: uppercase;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`
+
+S.NextRound = styled.button`
+	width: 100px;
+	visibility: ${props => props.show ? "visible" : "hidden"};
+	padding: 10px;
+	border: none;
+  border-radius: 8px;
+	margin-top: 20px;
+	transition: background-color 0.3s, transform 0.1s;
+  text-transform: uppercase;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 `
 
 export default S

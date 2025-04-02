@@ -47,21 +47,25 @@ const Home = ({ firebase }) => {
 		if (!name) return
 		if (gameState.players.find(player => player.name === name)) return false
 		if (checkIfExists(id, gameState.players)) return
+		const updatedGameLog = [...gameState.gameLog]
+
 		setShowForm(false)
 		const newPlayer = {
 			...playerTemplate,
 			id,
 			name: name
 		}
+		updatedGameLog.push(`${newPlayer.name} has joined the game`)
 
-		await updateRoom("room", {
-			players: [...gameState.players, newPlayer],
-		})
+		await updateRoom("room", { players: [...gameState.players, newPlayer], gameLog: updatedGameLog })
 	}
 
 	const startGame = async () => {
+		const updatedGameLog = [...gameState.gameLog]
 		const randomNum = Math.floor(Math.random() * (gameState.players.length))
-		await updateRoom("room", { phase: "playing", whoseTurn: gameState.players[randomNum].id, round: 1})
+		updatedGameLog.push("Round 1")
+		
+		await updateRoom("room", { phase: "playing", whoseTurn: gameState.players[randomNum].id, round: 1, gameLog: updatedGameLog })
 	}
 
 	const resetGame = async () => {
