@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { withFirebase } from "../../Firebase"
 import S from "./style"
 import originalDeck from "../deck"
@@ -8,6 +8,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
   const { updateRoom } = firebase
   const { deck, discardPile, phase, players, whoseTurn, round, resolveSpecial, gameLog } = gameState
 	const [thisPlayer, setThisPlayer] = useState({})
+	const gameLogRef = useRef(null)
 
   const draw = async (i = null) => {
     let updatedDeck = [...deck]
@@ -35,7 +36,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		updatedHand.push(drawnCard)
 		player.hand = updatedHand
 
-		message += `${player.name} drew a ${formatMessage(drawnCard)}.`
+		message += `${player.name} drew a ${formatMessage(drawnCard)}`
 
 		// just to make it so player3 Cant draw any effect
 		if (i === 2 ) {
@@ -79,6 +80,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 			let specialPhase = handleSpecial(player, drawnCard, updatedPlayers, i, updatedDiscardPile, updatedResolveSpecial)
 			//if phase is changed to selecting, player is selecting a person to play an effect card so stop code here
 			if (specialPhase) {
+				message += " and is selecting a player."
 				updatedGameLog.push(message)
 				await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: specialPhase, gameLog: updatedGameLog })
 				return
@@ -101,7 +103,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 				}
 			}
 			bustPlayer(player)
-			message += ".. and busted :("
+			message += " and busted :("
 		}
 
 		calculatePoints(updatedPlayers)
@@ -111,7 +113,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		if (isWinner) {
 			// End the round
 			addPointsToTotal(updatedPlayers)
-			message += ".. and managed to flip 7 point cards! +15 points"
+			message += " and flipped 7 point cards! Awarded an extra +15 points"
 			updatedGameLog.push(message)
 			await updateRoom("room", { deck: updatedDeck, players: updatedPlayers, phase: "roundEnd", whoseTurn: updatedWhoseTurn, resolveSpecial: false, gameLog: updatedGameLog })
 			return
@@ -211,6 +213,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 	}
 
 	const stay = async () => {
+		const updatedGameLog = [...gameLog]
 		if (id !== whoseTurn) return
 		const updatedPlayers = [...players]
 		const i = updatedPlayers.findIndex(player => player.id === id)
@@ -219,7 +222,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		let updatedWhoseTurn =  nextTurnId(updatedPlayers, i)
 		//implement if last person decides to stay and end the round
 		checkIfAllBust(updatedPlayers)
-		await updateRoom("room", { players: updatedPlayers, whoseTurn: updatedWhoseTurn })
+
+		updatedGameLog.push(`${updatedPlayers[i].name} has decided to stay for this round`)
+		await updateRoom("room", { players: updatedPlayers, whoseTurn: updatedWhoseTurn, gameLog: updatedGameLog })
 	}
 
 	const bustPlayer = async (player) => {
@@ -295,17 +300,21 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
   }
 
 	const checkIfAllBust = async (players) => {
+		const updatedGameLog = [...gameLog]
+
 		if (players.every(player => player.status === "busted" || player.status === "stayed") && players.length !== 0) {
 			// let updatedWhoseTurn = nextTurnId(players, currIndex)
 			// await updateRoom("room", { phase: "roundEnd", whoseTurn: updatedWhoseTurn })
 			addPointsToTotal(players)
-			await updateRoom("room", { players, phase: "roundEnd" })
+			updatedGameLog.push("Everyone has busted or stayed")
+			await updateRoom("room", { players, phase: "roundEnd", gameLog: updatedGameLog })
 			return true
 		}
 		return false
 	}
 
   const startNextRound = async () => {
+		const updatedGameLog = [...gameLog]
 		const updatedPlayers = [...players]
 		const currIndex = updatedPlayers.findIndex(player => player.id === whoseTurn)
 		let discardedCards = [...discardPile]
@@ -320,7 +329,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 			player.upNext = false
 		}
 		const updatedWhoseTurn = nextTurnId(updatedPlayers, currIndex)
-		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", whoseTurn: updatedWhoseTurn, round: round + 1 })
+
+		updatedGameLog.push(`Starting round ${round + 1}`)
+		await updateRoom("room", { discardPile: discardedCards, players: updatedPlayers, phase: "playing", whoseTurn: updatedWhoseTurn, round: round + 1, gameLog: updatedGameLog })
   }
 
 	const checkEndGame = () => {
@@ -328,10 +339,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		const sortedPlayers = [...players].sort((a, b) => b.totalPoints - a.totalPoints)
 		const isWinCondition = updatedPlayers.some(player => player.totalPoints >= 200)
 		if (isWinCondition) {
+			const updatedGameLog = [...gameLog]
+
 			const winner = sortedPlayers[0]
 			const winnerIndex = updatedPlayers.findIndex(player => player.id === winner.id)
 			updatedPlayers[winnerIndex].status = "won"
-			updateRoom("room", { players: updatedPlayers })
+			updatedGameLog.push(`${updatedPlayers[winnerIndex].name} is the winner!`)
+			updateRoom("room", { players: updatedPlayers, gameLog: updatedGameLog })
 		}
 	}
 
@@ -371,8 +385,10 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 					return "Freeze"
 				case "secondChance":
 					return "Revive"
+				case "times2":
+					return "point modifier (x2)"
 				default:
-					return `point modifier (${card.effect.substring(4)})`
+					return `point modifier (+${card.effect.substring(4)})`
 			}
 		} else if (card.value === 0) {
 			return "0"
@@ -449,6 +465,12 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		}
 	}, [phase])
 
+	useEffect(() => {
+		if (gameLogRef.current) {
+			gameLogRef.current.scrollTop = gameLogRef.current.scrollHeight
+		}
+	}, [gameLog])
+
   const playerList = players ? rotateIds(id, players).map((player, i) => {
 		const regularHandList = player.hand.map((hand, j, arr2) => {
 			const animate = j === arr2.length - 1;
@@ -505,23 +527,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
   }) : null
 
 	// when cards run out and discard pile gets merged with deck, leave the last element of discard in the pile still
-	const discardList = discardPile ? discardPile.map((card, i, arr) => {
-		if (i > arr.length - 6) {
-			let modEffect = card.effect
-			let smaller = true
-			if (card.effect) {
-				if (modEffect.indexOf("plus") !== -1) {
-					smaller = false
-					modEffect = "+" + modEffect.substring(4)
-				} else if (modEffect === "flip3") {
-					modEffect = "flip-3"
-				} else if (modEffect === "secondChance") {
-					modEffect = "revive"
-				}
-			}
-			return <S.DiscardCard key={i} shift={i - (arr.length - 5)} smaller={smaller}>{modEffect || card.value}</S.DiscardCard>
-		}
-	}) : null
+	// add message of discard being rehuffled, also indicator of how many cards are left
 
 	const selectList = players ? players.map((player, i) => {
 		// make sure players who busted or stayed don't show up in the list
@@ -529,7 +535,9 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 	}) : null
 
 	const messageList = gameLog ? gameLog.map((message, i) => {
-		return <p>{message}</p>
+		const name = message.split(" ")[0]
+		const restOfMessage = message.split(" ").slice(1).join(" ")
+		return <S.Message><S.Bold>{name}</S.Bold> {restOfMessage}</S.Message>
 	}) : null
 
   return (
@@ -541,7 +549,7 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
       <S.Container1>
 				{playerList}
 				<S.Container2>
-					<S.GameLog>{messageList}</S.GameLog>
+					<S.GameLog ref={gameLogRef}>{messageList}</S.GameLog>
 					<button onClick={() => draw()} disabled={id !== whoseTurn || thisPlayer.status === "busted" || phase !== "playing"}>draw</button>
 					{/* <button onClick={() => draw(2)} disabled={phase !== "playing"}>drawMock1</button>
 					<button onClick={() => draw(3)} disabled={phase !== "playing"}>drawMock2</button> */}
@@ -555,7 +563,6 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 					{/* <button onClick={addFlip3}>Add Flip3</button>
 					<button onClick={addFreeze}>Add Freeze</button> */}
 				</S.Container2>
-				<S.DiscardPile>{discardList}</S.DiscardPile>
 				<S.SelectContainer show={thisPlayer.isSelecting}>
 					<S.SpecialTitle>{phase === "selectingFreeze" ? "Give this freeze card to: " : "Give this flip-3 card to: "}</S.SpecialTitle>
 					{selectList}

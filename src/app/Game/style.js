@@ -69,32 +69,6 @@ S.Card = styled.div`
   }
 `
 
-S.DiscardPile = styled.div`
-	position: relative;
-`
-
-S.DiscardCard = styled.div`
-	position: absolute;
-	left: ${props => props.shift ? `${props.shift * 10}px` : "0"};
-	top: ${props => props.shift ? `${props.shift * 10}px` : "0"};
-	width: 35px;
-	height: 50px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	font-size: ${props => props.smaller ? "12px" : "16px"};
-	border: ${props => props.duplicate ? "1px solid red" : "1px solid black"};
-  margin: 2.5px;
-	text-align: center;
-
-  transition: opacity 1s ease-in;
-  animation: ${props => props.animate ? "fadeIn 0.3s forwards" : "none"};
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-`
-
 S.Points = styled.p`
 	position: absolute;
 	bottom: 0;
@@ -120,14 +94,19 @@ S.Banner = styled.div`
 
 S.SelectContainer = styled.div`
 	position: absolute;
-	top: calc((100vh / 2));
-	left: calc((100vw / 2) - 75px);
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
 	width: 175px;
 	display: ${props => props.show ? "flex" : "none"};
 	flex-direction: column;
-	background-color: grey;
-	box-sizing: border-box;
+	background-color: rgba(0, 0, 0, 0.8);
+	color: white;
 	padding: 10px;
+  border: 1px solid #444; /* Slightly darker border */
+	border-radius: 12px;
+	box-sizing: border-box;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 `
 
 S.SpecialTitle = styled.p`
@@ -135,7 +114,22 @@ S.SpecialTitle = styled.p`
 `
 
 S.SelectName = styled.button`
+	font-size: 16px;
+	background-color: rgba(255, 255, 255, 0.2); /* Slightly dark background */
+	color: white;
+	padding: 8px;
+  border: none;
+  border-radius: 8px;
 	margin: 5px 0;
+  font-weight: lighter;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.1s;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.3); /* Lighter on hover */
+    transform: scale(1.05); /* Slightly enlarge on hover */
+  }
+
 `
 
 S.Container2 = styled.div`
@@ -155,10 +149,11 @@ S.GameLog = styled.div`
   font-size: 14px;
   border-radius: 12px;
   padding: 10px;
-  overflow-y: auto;
   border: 1px solid #ccc;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  
+	overflow-y: auto;
+	scroll-behavior: smooth;
+
   &::-webkit-scrollbar {
     width: 8px;
   }
@@ -171,14 +166,21 @@ S.GameLog = styled.div`
   &::-webkit-scrollbar-track {
     background-color: transparent;
   }
-`;
+`
 
 S.Message = styled.div`
-  margin-bottom: 5px;
+	font-size: 16px;
+	background-color: rgba(255, 255, 255, 0.1);
   padding: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+  margin-bottom: 5px;
+	font-weight: lighter;
   line-height: 1.4;
-`;
+`
+
+S.Bold = styled.span`
+	color: #ffd700;
+	font-weight: bolder;
+`
 
 export default S
