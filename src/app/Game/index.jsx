@@ -39,12 +39,13 @@ const Game = ({ gameState, id, checkIfExists, shuffle, isHost, playerTemplate, f
 		message += `${player.name} drew a ${formatMessage(drawnCard)}`
 
 		// just to make it so player3 Cant draw any effect
-		if (i === 2 ) {
-			if (drawnCard.effect) {
-				drawnCard.effect = "plus2"
+		// if (i === 2 ) {
+		// 	if (drawnCard.effect) {
+		// 		drawnCard.effect = "plus2"
 
-			}
-		}
+		// 	}
+		// }
+		
 		// FIX DOUBLE CHECKING CHECKIFBUST
 		if (player.status.indexOf("flipping") >= 0 && !checkIfBust(player, drawnCard, updatedDiscardPile, true)) {
 			// if player draws flip3 or freeze during their flip3, resolvespecial is true
